@@ -1,0 +1,37 @@
+{
+  "LogLevel": "info",
+  "ClientOptions": {
+    "Dir": ".",
+    "Address": "127.0.0.1",
+    "Port": 3322,
+    "HealthCheckRetries": 5,
+    "MTLs": false,
+    "MTLsOptions": {
+      "Servername": "",
+      "Pkey": "",
+      "Certificate": "",
+      "ClientCAs": ""
+    },
+    "Auth": true,
+    "MaxRecvMsgSize": 4194304,
+    "DialOptions": [
+      {}
+    ],
+    "Config": "configs/immuclient.toml",
+    "TokenFileName": "",
+    "CurrentDatabase": "",
+    "PasswordReader": {},
+    "Username": "",
+    "Password": "",
+    "Database": "",
+    "Metrics": true,
+    "PidPath": "",
+    "LogFileName": "",
+    "ServerSigningPubKey": "",
+    "StreamChunkSize": 65536,
+    "HeartBeatFrequency": 60000000000
+  },
+  "Assets": null,
+  "Statuses": null,
+  "BatchSize": 25
+}

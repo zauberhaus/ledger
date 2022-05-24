@@ -1,0 +1,10 @@
+core.ledger.tool
+.vscode/
+*.crt
+*.key
+*.zip
+.DS_Store
+_*.yaml
+__debug_bin
+data/*
+certs/*
