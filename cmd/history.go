@@ -5,9 +5,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ec-systems/core.ledger.tool/pkg/client"
-	"github.com/ec-systems/core.ledger.tool/pkg/config"
-	"github.com/ec-systems/core.ledger.tool/pkg/ledger"
+	"github.com/ec-systems/core.ledger.service/pkg/client"
+	"github.com/ec-systems/core.ledger.service/pkg/config"
+	"github.com/ec-systems/core.ledger.service/pkg/ledger"
+	"github.com/ec-systems/core.ledger.service/pkg/types"
+	"github.com/google/uuid"
 	"github.com/olekukonko/tablewriter"
 
 	"fmt"
@@ -20,8 +22,8 @@ import (
 func addHistoryCmd(root *RootCommand) {
 
 	cmd := &cobra.Command{
-		Use:           "history",
-		Short:         "Show the history of a immudb key",
+		Use:           "history <id>",
+		Short:         "Show the history of a transaction",
 		Args:          cobra.ExactArgs(1),
 		SilenceErrors: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -51,7 +53,10 @@ func addHistoryCmd(root *RootCommand) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Configuration()
 
-			key := args[0]
+			id, err := uuid.Parse(args[0])
+			if err != nil {
+				return err
+			}
 
 			client, err := client.New(cmd.Context(), cfg.ClientOptions.Username, cfg.ClientOptions.Password, cfg.ClientOptions.Database,
 				client.ClientOptions(cfg.ClientOptions),
@@ -63,8 +68,10 @@ func addHistoryCmd(root *RootCommand) {
 
 			defer client.Close(cmd.Context())
 
-			assets := cfg.Assets
-			l := ledger.New(client, ledger.SupportedAssets(assets))
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.SupportedStatuses(cfg.Statuses),
+			)
 
 			if err != nil {
 				return err
@@ -73,7 +80,7 @@ func addHistoryCmd(root *RootCommand) {
 			table := tablewriter.NewWriter(os.Stdout)
 			table.SetHeader([]string{"TX", "Date", "Status"})
 
-			err = l.History(cmd.Context(), key, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
+			err = l.History(cmd.Context(), types.ID{UUID: id}, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
 				table.Append(tx.Change())
 				return true, nil
 			})

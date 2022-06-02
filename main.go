@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ec-systems/core.ledger.tool/cmd"
+	"github.com/ec-systems/core.ledger.service/cmd"
 )
 
 var (

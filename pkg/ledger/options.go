@@ -1,6 +1,8 @@
 package ledger
 
-import "github.com/ec-systems/core.ledger.tool/pkg/types"
+import (
+	"github.com/ec-systems/core.ledger.service/pkg/types"
+)
 
 type LedgerOption interface {
 	Set(*Ledger)
@@ -10,6 +12,12 @@ type LedgerOptionFunc func(*Ledger)
 
 func (f LedgerOptionFunc) Set(l *Ledger) {
 	f(l)
+}
+
+func Format(value types.Format) LedgerOption {
+	return LedgerOptionFunc(func(l *Ledger) {
+		l.format = value
+	})
 }
 
 func Overdraw(value ...bool) LedgerOption {
@@ -58,25 +66,19 @@ func (f TransactionOptionFunc) Set(tx *Transaction) {
 	f(tx)
 }
 
-func NewAccount(customer string, asset types.Asset) TransactionOption {
-	account, err := types.NewAccount(customer, asset)
-	if err != nil {
-		account = ""
-	}
-
-	return TransactionOptionFunc(func(tx *Transaction) {
-		tx.Account = account
-	})
-}
-
 func Account(account types.Account) TransactionOption {
 	return TransactionOptionFunc(func(tx *Transaction) {
 		tx.Account = account
 	})
 }
 
-func Reference(ref interface{}) TransactionOption {
+func Reference(r interface{}) TransactionOption {
 	return TransactionOptionFunc(func(tx *Transaction) {
+		ref, err := types.NewReference(r)
+		if err != nil {
+			tx.Reference = types.Reference(err.Error())
+		}
+
 		tx.Reference = ref
 	})
 }

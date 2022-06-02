@@ -2,17 +2,17 @@
 package types
 
 const (
-	Settled Status = 100
-	PayedOut Status = 101
-	Finished Status = 1000
 	Unknown Status = -1
 	Created Status = 0
+	CancellationFinished Status = 998
+	Canceled Status = 999
+	Finished Status = 1000
 )
 
 var DefaultStatusMap = Statuses{
 	"Unknown": Unknown,
 	"Created": Created,
-	"Settled": Settled,
-	"PayedOut": PayedOut,
+	"CancellationFinished": CancellationFinished,
+	"Canceled": Canceled,
 	"Finished": Finished,
 }

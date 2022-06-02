@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/ec-systems/core.ledger.tool/pkg/logger"
+	"github.com/ec-systems/core.ledger.service/pkg/logger"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )

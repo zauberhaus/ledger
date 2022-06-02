@@ -4,10 +4,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ec-systems/core.ledger.tool/pkg/client"
-	"github.com/ec-systems/core.ledger.tool/pkg/config"
-	"github.com/ec-systems/core.ledger.tool/pkg/ledger"
-	"github.com/ec-systems/core.ledger.tool/pkg/types"
+	"github.com/ec-systems/core.ledger.service/pkg/client"
+	"github.com/ec-systems/core.ledger.service/pkg/config"
+	"github.com/ec-systems/core.ledger.service/pkg/ledger"
+	"github.com/ec-systems/core.ledger.service/pkg/types"
 	"github.com/olekukonko/tablewriter"
 
 	"fmt"
@@ -19,8 +19,8 @@ import (
 
 func addAccountsCmd(root *RootCommand) {
 	cmd := &cobra.Command{
-		Use:           "accounts",
-		Short:         "List all accounts of a customer",
+		Use:           "accounts <holder id> [asset]",
+		Short:         "List all accounts of a holder",
 		Args:          cobra.RangeArgs(1, 2),
 		SilenceErrors: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -60,34 +60,37 @@ func addAccountsCmd(root *RootCommand) {
 
 			defer client.Close(cmd.Context())
 
-			l := ledger.New(client, ledger.SupportedAssets(cfg.Assets))
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.SupportedStatuses(cfg.Statuses),
+			)
 
-			customer := args[0]
+			holder := args[0]
 
 			var asset types.Asset
 			if len(args) > 1 {
-				asset, err = l.ParseAsset(args[1])
+				asset, err = cfg.Assets.Parse(args[0])
 				if err != nil {
 					return err
 				}
 			}
 
-			balances, err := l.Balance(cmd.Context(), customer, asset, types.AllAccounts, types.AllStatuses)
+			balances, err := l.Balance(cmd.Context(), holder, asset, types.AllAccounts, types.AllStatuses)
 			if err != nil {
 				return err
 			}
 
 			if len(balances) == 0 {
-				fmt.Fprintf(cmd.ErrOrStderr(), "No accounts for customer %v not found\n", customer)
+				fmt.Fprintf(cmd.ErrOrStderr(), "No accounts for holder %v not found\n", holder)
 				return nil
 			}
 
 			table := tablewriter.NewWriter(os.Stdout)
-			table.SetHeader([]string{"Customer", "Account", "Asset", "TX Count", "Balance"})
+			table.SetHeader([]string{"Holder", "Account", "Asset", "TX Count", "Balance"})
 
 			for asset, balance := range balances {
 				for account, acc := range balance.Accounts {
-					table.Append([]string{customer, account.String(), asset.String(), fmt.Sprintf("%v", acc.Count), fmt.Sprintf("%.8f", acc.Sum)})
+					table.Append([]string{holder, account.String(), asset.String(), fmt.Sprintf("%v", acc.Count), acc.Sum.String()})
 				}
 			}
 

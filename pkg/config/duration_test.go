@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ec-systems/core.ledger.tool/pkg/config"
+	"github.com/ec-systems/core.ledger.service/pkg/config"
 	"github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"

@@ -1,0 +1,21 @@
+syntax = "proto3";
+package ledger;
+option go_package = "pkg/ledger/protobuf"; 
+
+message Transaction {
+  bytes ID = 1;
+  string Account = 2;
+  string Holder = 3;
+  string Order = 4;
+  string Item = 5;
+
+  string Asset = 6;
+  string Amount = 7;
+
+  int64 Status = 8;
+  bytes Created = 9;
+  bytes Modified = 10;
+  string Reference = 11;
+
+  string User = 12;
+}

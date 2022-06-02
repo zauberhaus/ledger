@@ -1,0 +1,368 @@
+basePath: /
+definitions:
+  ledger.Transaction:
+    properties:
+      Item:
+        type: string
+      Order:
+        type: string
+      Ref:
+        type: string
+      account:
+        type: string
+      amount:
+        type: number
+      asset:
+        type: string
+      created:
+        type: string
+      holder:
+        type: string
+      id:
+        type: string
+      modified:
+        type: string
+      status:
+        type: integer
+      user:
+        type: string
+    type: object
+  service.Asset:
+    properties:
+      name:
+        type: string
+      symbol:
+        type: string
+    type: object
+  service.Status:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+info:
+  contact:
+    email: support@easycrypto.ai
+    name: Easy Crypto Core Team
+    url: http://easycrypto.ai
+  description: This is the web service of the core asset ledger.
+  title: Core Ledger
+  version: 0.0.1
+paths:
+  /{holder}/{asset}:
+    get:
+      description: List accounts and balances of a holder
+      parameters:
+      - description: Account Holder
+        in: path
+        name: holder
+        required: true
+        type: string
+      - description: Asset Symbol
+        in: path
+        name: asset
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ledger.Transaction'
+            type: array
+        "404":
+          description: ""
+        "500":
+          description: ""
+      summary: List Accounts
+      tags:
+      - Accounts
+  /{holder}/{asset}/{account}:
+    get:
+      description: List all the transactions of an account
+      parameters:
+      - description: Account Holder
+        in: path
+        name: holder
+        required: true
+        type: string
+      - description: Asset Symbol
+        in: path
+        name: asset
+        required: true
+        type: string
+      - description: Account
+        in: path
+        name: account
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ledger.Transaction'
+        "404":
+          description: ""
+        "500":
+          description: ""
+      summary: List Transactions
+      tags:
+      - Accounts
+  /{holder}/{asset}/{account}/{id}:
+    delete:
+      description: Show the transaction history
+      parameters:
+      - description: Account Holder
+        in: path
+        name: holder
+        required: true
+        type: string
+      - description: Asset Symbol
+        in: path
+        name: asset
+        required: true
+        type: string
+      - description: Account
+        in: path
+        name: account
+        required: true
+        type: string
+      - description: Transaction ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ledger.Transaction'
+            type: array
+        "404":
+          description: ""
+        "500":
+          description: ""
+      summary: Show History
+      tags:
+      - Accounts
+    patch:
+      description: Set the status of a transaction
+      parameters:
+      - description: Account Holder
+        in: path
+        name: holder
+        required: true
+        type: string
+      - description: Asset Symbol
+        in: path
+        name: asset
+        required: true
+        type: string
+      - description: Account
+        in: path
+        name: account
+        required: true
+        type: string
+      - description: Transaction ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ledger.Transaction'
+        "404":
+          description: ""
+        "500":
+          description: ""
+      summary: Change a Transaction
+      tags:
+      - Accounts
+  /accounts/{holder}/{asset}/{account}/{id}:
+    delete:
+      description: Remove or remove assets from ledger by reverting a transaction
+      parameters:
+      - description: Account Holder
+        in: path
+        name: holder
+        required: true
+        type: string
+      - description: Asset Symbol
+        in: path
+        name: asset
+        required: true
+        type: string
+      - description: Reference
+        in: query
+        name: ref
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ledger.Transaction'
+        "400":
+          description: ""
+        "404":
+          description: ""
+        "500":
+          description: ""
+      summary: Cancel a transaction
+      tags:
+      - Accounts
+  /accounts/{holder}/{asset}/{amount}:
+    delete:
+      description: Remove assets to the ledger
+      parameters:
+      - description: Account Holder
+        in: path
+        name: holder
+        required: true
+        type: string
+      - description: Asset Symbol
+        in: path
+        name: asset
+        required: true
+        type: string
+      - description: Amount
+        in: path
+        name: amount
+        required: true
+        type: string
+      - description: Order ID
+        in: query
+        name: order
+        type: string
+      - description: Order Item ID
+        in: query
+        name: item
+        type: string
+      - description: Reference
+        in: query
+        name: ref
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ledger.Transaction'
+        "400":
+          description: ""
+        "404":
+          description: ""
+        "500":
+          description: ""
+      summary: Remove Assets
+      tags:
+      - Accounts
+    put:
+      description: Add assets to the ledger
+      parameters:
+      - description: Account Holder
+        in: path
+        name: holder
+        required: true
+        type: string
+      - description: Asset Symbol
+        in: path
+        name: asset
+        required: true
+        type: string
+      - description: Amount
+        in: path
+        name: amount
+        required: true
+        type: string
+      - description: Order ID
+        in: query
+        name: order
+        type: string
+      - description: Order Item ID
+        in: query
+        name: item
+        type: string
+      - description: Reference
+        in: query
+        name: ref
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ledger.Transaction'
+        "400":
+          description: ""
+        "404":
+          description: ""
+        "500":
+          description: ""
+      summary: Add Assets
+      tags:
+      - Accounts
+  /health:
+    get:
+      description: List of the statuses supported by the ledger
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              items:
+                $ref: '#/definitions/service.Status'
+              type: array
+            type: array
+      summary: Database Health
+      tags:
+      - Health
+  /info/assets:
+    get:
+      description: List of the assets supported by the ledger
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/service.Asset'
+            type: array
+      summary: Supported Assets
+      tags:
+      - Info
+  /info/statuses:
+    get:
+      description: List of the statuses supported by the ledger
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              items:
+                $ref: '#/definitions/service.Status'
+              type: array
+            type: array
+      summary: Supported Statuses
+      tags:
+      - Info
+swagger: "2.0"

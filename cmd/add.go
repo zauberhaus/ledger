@@ -1,14 +1,14 @@
 package cmd
 
 import (
-	"strconv"
 	"strings"
 
-	"github.com/ec-systems/core.ledger.tool/pkg/client"
-	"github.com/ec-systems/core.ledger.tool/pkg/config"
-	"github.com/ec-systems/core.ledger.tool/pkg/ledger"
-	"github.com/ec-systems/core.ledger.tool/pkg/logger"
-	"github.com/ec-systems/core.ledger.tool/pkg/types"
+	"github.com/ec-systems/core.ledger.service/pkg/client"
+	"github.com/ec-systems/core.ledger.service/pkg/config"
+	"github.com/ec-systems/core.ledger.service/pkg/ledger"
+	"github.com/ec-systems/core.ledger.service/pkg/logger"
+	"github.com/ec-systems/core.ledger.service/pkg/types"
+	"github.com/shopspring/decimal"
 
 	"fmt"
 
@@ -20,9 +20,9 @@ import (
 func addAddCmd(root *RootCommand) {
 
 	cmd := &cobra.Command{
-		Use:           "add <customer> <asset> <amount>",
+		Use:           "add <holder id> <asset> <amount> [order] [order item]",
 		Short:         "Adds assets to the ledger",
-		Args:          cobra.ExactArgs(3),
+		Args:          cobra.RangeArgs(3, 5),
 		SilenceErrors: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Configuration()
@@ -51,20 +51,20 @@ func addAddCmd(root *RootCommand) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Configuration()
 
-			customer := args[0]
-			amount, err := strconv.ParseFloat(args[2], 64)
+			holder := args[0]
+			amount, err := decimal.NewFromString(args[2])
 			if err != nil {
 				return fmt.Errorf("invalid amount format: %v", err)
 			}
 
-			order, err := cmd.Flags().GetString("order")
-			if err != nil {
-				return err
+			order := ""
+			if len(args) > 3 {
+				order = args[3]
 			}
 
-			item, err := cmd.Flags().GetString("order-item")
-			if err != nil {
-				return err
+			item := ""
+			if len(args) > 4 {
+				item = args[4]
 			}
 
 			accountID, err := cmd.Flags().GetString("account")
@@ -88,14 +88,17 @@ func addAddCmd(root *RootCommand) {
 			defer client.Close(cmd.Context())
 
 			assets := cfg.Assets
-			l := ledger.New(client, ledger.SupportedAssets(assets))
+			l := ledger.New(client,
+				ledger.SupportedAssets(assets),
+				ledger.SupportedStatuses(cfg.Statuses),
+			)
 
-			asset, err := l.ParseAsset(args[1])
+			asset, err := assets.Parse(args[1])
 			if err != nil {
 				return err
 			}
 
-			id, err := l.Add(cmd.Context(), customer, asset, amount,
+			id, err := l.Add(cmd.Context(), holder, asset, amount,
 				ledger.Account(account),
 				ledger.OrderID(order),
 				ledger.OrderItemID(item),
@@ -114,9 +117,7 @@ func addAddCmd(root *RootCommand) {
 		},
 	}
 
-	cmd.Flags().StringP("account", "a", "", "Customer account id (optional)")
-	cmd.Flags().StringP("order", "o", "", "Order id (optional)")
-	cmd.Flags().StringP("order-item", "i", "", "Order item id (optional)")
+	cmd.Flags().StringP("account", "a", "", "Account id (optional)")
 
 	root.AddCommand(cmd)
 }

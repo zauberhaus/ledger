@@ -1,9 +1,6 @@
 package types
 
 import (
-	"encoding/hex"
-	"fmt"
-	"hash/crc32"
 	"math/big"
 	"strconv"
 	"strings"
@@ -14,23 +11,12 @@ const (
 )
 
 type AccountInfo struct {
-	Account  Account
-	Customer string
-	Asset    Asset
+	Account Account
+	Holder  string
+	Asset   Asset
 }
 
 type Account string
-
-func NewAccount(customer string, asset Asset) (Account, error) {
-	hash := crc32.New(crc32.IEEETable)
-	hash.Write([]byte(customer))
-	account := hex.EncodeToString(hash.Sum([]byte(asset)))
-
-	chk := Account(account + "00").Checksum()
-
-	return Account(fmt.Sprintf("%v%02d", account, chk)), nil
-
-}
 
 func (a Account) String() string {
 	return string(a)

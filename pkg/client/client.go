@@ -10,16 +10,19 @@ import (
 )
 
 type Client struct {
-	client  immudb.ImmuClient
-	options *immudb.Options
-	limit   uint32
+	client   immudb.ImmuClient
+	options  *immudb.Options
+	limit    uint32
+	verified bool
 }
 
 func New(ctx context.Context, user string, password string, db string, options ...ClientOption) (*Client, error) {
 	cl := &Client{}
 
 	for _, option := range options {
-		option.Set(cl)
+		if option != nil {
+			option.Set(cl)
+		}
 	}
 
 	client, err := immudb.NewImmuClient(cl.options)
@@ -138,17 +141,26 @@ func (c *Client) Exec(ctx context.Context, operations ...interface{}) (uint64, e
 	return tx.Id, nil
 }
 
-func (c *Client) Set(ctx context.Context, key string, value interface{}) (uint64, error) {
+func (c *Client) set(ctx context.Context, key []byte, value []byte) (*schema.TxHeader, error) {
+	if c.verified {
+		return c.client.VerifiedSet(ctx, key, value)
+	} else {
+		return c.client.Set(ctx, key, value)
+	}
+}
+
+func (c *Client) Set(ctx context.Context, key []byte, value interface{}) (uint64, error) {
+
 	switch v := value.(type) {
 	case string:
-		tx, err := c.client.Set(ctx, []byte(key), []byte(v))
+		tx, err := c.set(ctx, []byte(key), []byte(v))
 		if err != nil {
 			return 0, err
 		}
 
 		return tx.Id, nil
 	case []byte:
-		tx, err := c.client.Set(ctx, []byte(key), v)
+		tx, err := c.set(ctx, []byte(key), v)
 		if err != nil {
 			return 0, err
 		}
@@ -160,7 +172,7 @@ func (c *Client) Set(ctx context.Context, key string, value interface{}) (uint64
 			return 0, nil
 		}
 
-		tx, err := c.client.Set(ctx, []byte(key), data)
+		tx, err := c.client.VerifiedSet(ctx, []byte(key), data)
 		if err != nil {
 			return 0, err
 		}
@@ -169,8 +181,16 @@ func (c *Client) Set(ctx context.Context, key string, value interface{}) (uint64
 	}
 }
 
+func (c *Client) get(ctx context.Context, key []byte) (*schema.Entry, error) {
+	if c.verified {
+		return c.client.VerifiedGet(ctx, key)
+	} else {
+		return c.client.Get(ctx, key)
+	}
+}
+
 func (c *Client) Get(ctx context.Context, key string) (*schema.Entry, error) {
-	tx, err := c.client.Get(ctx, []byte(key))
+	tx, err := c.get(ctx, []byte(key))
 	if err != nil {
 		return nil, fmt.Errorf("cant get key %v: %v", key, err)
 	}
@@ -178,8 +198,16 @@ func (c *Client) Get(ctx context.Context, key string) (*schema.Entry, error) {
 	return tx, nil
 }
 
+func (c *Client) getAt(ctx context.Context, key []byte, tx uint64) (*schema.Entry, error) {
+	if c.verified {
+		return c.client.VerifiedGetAt(ctx, key, tx)
+	} else {
+		return c.client.GetAt(ctx, key, tx)
+	}
+}
+
 func (c *Client) GetAt(ctx context.Context, key string, txID uint64) (*schema.Entry, error) {
-	tx, err := c.client.GetAt(ctx, []byte(key), txID)
+	tx, err := c.getAt(ctx, []byte(key), txID)
 	if err != nil {
 		return nil, fmt.Errorf("cant get key %v: %v", key, err)
 	}
@@ -230,7 +258,15 @@ func (c *Client) History(ctx context.Context, key string, f func(context.Context
 	return nil
 }
 
-/*
+func (c *Client) LastTX(ctx context.Context) (uint64, error) {
+	state, err := c.client.CurrentState(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	return state.TxId, nil
+}
+
 func (c *Client) Scan(ctx context.Context, prefix string, limit uint64, desc bool) ([]*schema.Entry, error) {
 
 	scanReq := &schema.ScanRequest{
@@ -246,9 +282,12 @@ func (c *Client) Scan(ctx context.Context, prefix string, limit uint64, desc boo
 
 	return list.Entries, nil
 }
-*/
 
 func (c *Client) ScanAll(ctx context.Context, prefix string, desc bool, f func(context.Context, int, *schema.Entry) (bool, error)) error {
+	return c.ScanSince(ctx, prefix, desc, 0, f)
+}
+
+func (c *Client) ScanSince(ctx context.Context, prefix string, desc bool, since uint64, f func(context.Context, int, *schema.Entry) (bool, error)) error {
 	last := []byte(nil)
 	running := true
 
@@ -258,6 +297,7 @@ func (c *Client) ScanAll(ctx context.Context, prefix string, desc bool, f func(c
 			Limit:   uint64(c.limit),
 			SeekKey: last,
 			Desc:    desc,
+			SinceTx: since,
 		}
 
 		list, err := c.client.Scan(ctx, scanReq)
@@ -306,40 +346,6 @@ func (c *Client) ScanSet(ctx context.Context, set string, f func(context.Context
 	return nil
 }
 
-func (c *Client) AllTx(ctx context.Context, desc bool, f func(context.Context, *schema.Tx) (bool, error)) error {
-	last := uint64(2)
-	running := true
-
-	for running {
-		scanReq := &schema.TxScanRequest{
-			InitialTx: last,
-			Limit:     c.limit,
-			Desc:      desc,
-		}
-
-		list, err := c.client.TxScan(ctx, scanReq)
-		if err != nil {
-			return fmt.Errorf("error tx scan: %v", err)
-		}
-
-		for _, tx := range list.Txs {
-			ok, err := f(ctx, tx)
-			if err != nil {
-				return err
-			}
-
-			if !ok {
-				running = false
-				break
-			}
-		}
-
-		if !running || len(list.Txs) < int(scanReq.Limit) {
-			break
-		}
-
-		last = list.Txs[len(list.Txs)-1].Header.Id
-	}
-
-	return nil
+func (c *Client) Health(ctx context.Context) (*schema.DatabaseHealthResponse, error) {
+	return c.client.Health(ctx)
 }

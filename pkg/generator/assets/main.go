@@ -6,9 +6,11 @@ import (
 	"io/ioutil"
 	"log"
 	"path"
+	"sort"
 	"strings"
 
-	"github.com/ec-systems/core.ledger.tool/pkg/logger"
+	"github.com/ec-systems/core.ledger.service/pkg/logger"
+	"golang.org/x/exp/maps"
 	"gopkg.in/yaml.v3"
 )
 
@@ -35,25 +37,38 @@ func main() {
 	sb.WriteString(doNotEdit)
 	sb.WriteString("package types\n\n")
 
-	sb.WriteString("const (\n")
-	for k, v := range assets {
-		sb.WriteString(fmt.Sprintf("\t%v Asset = \"%v\"\n", k, v))
-	}
-	sb.WriteString(")\n\n")
+	/*
+		coins := map[string]types.Asset{}
+		for k, v := range assets {
+			_, ok := coins[v]
+			if ok {
+				v = fmt.Sprintf("%v_%v", v, k)
+			}
+
+			coins[v] = types.Asset(k)
+		}
+
+			symbols := []string{}
+			reverse := map[types.Asset]string{}
+			for k, v := range coins {
+				reverse[v] = k
+				symbols = append(symbols, v.String())
+			}
+	*/
+
+	symbols := maps.Keys(assets)
+	sort.Strings(symbols)
 
 	sb.WriteString("var DefaultAssetNames = Assets{\n")
-	for k, v := range assets {
-		sb.WriteString(fmt.Sprintf("\t\"%v\": \"%v\",\n", k, v))
+
+	for _, s := range symbols {
+		//k := types.Asset(s)
+		v := assets[s]
+		//sb.WriteString(fmt.Sprintf("\t\"%v\": Asset(\"%v\"),\n", k, v))
+		sb.WriteString(fmt.Sprintf("\tAsset(\"%v\"): \"%v\",\n", s, v))
 	}
 
 	sb.WriteString("}\n\n")
-
-	sb.WriteString("var DefaultAssetMap = Assets{\n")
-	for k, v := range assets {
-		sb.WriteString(fmt.Sprintf("\t\"%v\": %v,\n", v, k))
-	}
-
-	sb.WriteString("}\n")
 
 	logger.Infof("Write assets file: %v", filename)
 	err = ioutil.WriteFile(filename, []byte(sb.String()), fs.ModePerm)

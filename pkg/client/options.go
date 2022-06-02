@@ -23,3 +23,13 @@ func ClientOptions(options *immudb.Options) ClientOption {
 		c.options = options
 	})
 }
+
+func Verified(value ...bool) ClientOption {
+	return ClientOptionFunc(func(c *Client) {
+		if len(value) == 0 {
+			c.verified = true
+		}
+
+		c.verified = value[0]
+	})
+}

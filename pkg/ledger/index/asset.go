@@ -1,13 +1,18 @@
 package index
 
-import "github.com/ec-systems/core.ledger.tool/pkg/types"
+import "github.com/ec-systems/core.ledger.service/pkg/types"
 
-// AS:asset:consumer:account
+var AssetTx = AssetTxIndex{
+	index{
+		prefix: "AT",
+		max:    4,
+	},
+}
 
 var Asset = AssetIndex{
 	index{
 		prefix: "AS",
-		max:    3,
+		max:    1,
 	},
 }
 
@@ -15,6 +20,22 @@ type AssetIndex struct {
 	index
 }
 
-func (a *AssetIndex) Key(asset types.Asset, customer string, account types.Account) []byte {
-	return []byte(a.scan(asset.String(), customer, account.String()))
+func (a *AssetIndex) Key(asset types.Asset) []byte {
+	return []byte(a.scan(asset.String()))
+}
+
+func (a *AssetIndex) Assets() string {
+	return a.scan()
+}
+
+type AssetTxIndex struct {
+	index
+}
+
+func (a *AssetTxIndex) Key(asset types.Asset, holder string, account types.Account, id types.ID) []byte {
+	return []byte(a.scan(asset.String(), holder, account.String(), id.HexString()))
+}
+
+func (a *AssetTxIndex) Asset(asset types.Asset) string {
+	return a.scan(asset.String())
 }

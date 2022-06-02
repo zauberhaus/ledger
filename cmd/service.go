@@ -1,13 +1,13 @@
 package cmd
 
 import (
-	"os"
 	"strings"
 
-	"github.com/ec-systems/core.ledger.tool/pkg/client"
-	"github.com/ec-systems/core.ledger.tool/pkg/config"
-	"github.com/ec-systems/core.ledger.tool/pkg/ledger"
-	"github.com/olekukonko/tablewriter"
+	"github.com/ec-systems/core.ledger.service/pkg/client"
+	"github.com/ec-systems/core.ledger.service/pkg/config"
+	"github.com/ec-systems/core.ledger.service/pkg/ledger"
+	"github.com/ec-systems/core.ledger.service/pkg/logger"
+	"github.com/ec-systems/core.ledger.service/pkg/service"
 
 	"fmt"
 
@@ -16,12 +16,11 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-func addCustomerCmd(root *RootCommand) {
-	//var cmd *cobra.Command
+func addServiceCmd(root *RootCommand) {
 
 	cmd := &cobra.Command{
-		Use:           "customers",
-		Short:         "List all customers with a transaction",
+		Use:           "service",
+		Short:         "Starts ledger web service",
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -51,40 +50,48 @@ func addCustomerCmd(root *RootCommand) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Configuration()
 
+			logger.Info(cfg)
+
 			client, err := client.New(cmd.Context(), cfg.ClientOptions.Username, cfg.ClientOptions.Password, cfg.ClientOptions.Database,
 				client.ClientOptions(cfg.ClientOptions),
 				client.Limit(25),
 			)
 			if err != nil {
-				return fmt.Errorf("immudb client error: %v", err)
+				return fmt.Errorf("database client error: %v", err)
 			}
 
 			defer client.Close(cmd.Context())
 
-			assets := cfg.Assets
-			l := ledger.New(client, ledger.SupportedAssets(assets))
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.SupportedStatuses(cfg.Statuses),
+			)
 
-			customers, err := l.Customers(cmd.Context())
+			svc, err := service.NewLedgerService(cmd.Context(), l, &cfg.Service)
 			if err != nil {
-				return err
+				return fmt.Errorf("service error: %v", err)
 			}
 
-			table := tablewriter.NewWriter(os.Stdout)
-			table.SetHeader([]string{"Customer", "Account", "Asset"})
-
-			for _, customer := range customers {
-				table.Append(customer)
-			}
-
-			table.SetFooterAlignment(tablewriter.ALIGN_RIGHT)
-			table.Render()
-
-			return nil
+			return svc.Start()
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
 			return nil
 		},
 	}
+
+	cfg := config.Configuration()
+
+	cmd.Flags().StringP("interface", "i", cfg.Service.Device, "Network device for listener")
+	root.bindFlags(cmd.Flags(), "Service.Device", "interface")
+
+	cmd.Flags().IntP("port", "p", cfg.Service.Port, "Service port")
+	root.bindFlags(cmd.Flags(), "Service.Port", "port")
+
+	cmd.Flags().IntP("metrics", "M", cfg.Service.Metrics, "Metrics port")
+	root.bindFlags(cmd.Flags(), "Service.Metrics", "metrics")
+
+	cmd.Flags().Bool("production", cfg.Service.Production, "Service port")
+	root.bindFlags(cmd.Flags(), "Service.Production", "production")
 
 	root.AddCommand(cmd)
 }

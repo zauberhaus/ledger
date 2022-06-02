@@ -28,6 +28,13 @@ clientoptions:
   serversigningpubkey: ""
   streamchunksize: 65536
   heartbeatfrequency: 1m0s
-assets: {}
+service:
+  device: ""
+  port: 8888
+  production: false
+  metrics: 9094
+  mtls: null
+assets: []
 statuses: {}
 batchsize: 25
+format: "0"

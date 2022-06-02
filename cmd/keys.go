@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ec-systems/core.ledger.tool/pkg/client"
-	"github.com/ec-systems/core.ledger.tool/pkg/config"
+	"github.com/ec-systems/core.ledger.service/pkg/client"
+	"github.com/ec-systems/core.ledger.service/pkg/config"
 	"github.com/olekukonko/tablewriter"
 
 	"fmt"
@@ -19,7 +19,7 @@ import (
 func addKeysCmd(root *RootCommand) {
 
 	cmd := &cobra.Command{
-		Use:           "keys",
+		Use:           "keys <immudb tx id>",
 		Short:         "Show keys of a immudb transaction",
 		Args:          cobra.ExactArgs(1),
 		SilenceErrors: true,

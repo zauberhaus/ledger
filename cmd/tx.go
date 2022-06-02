@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ec-systems/core.ledger.tool/pkg/client"
-	"github.com/ec-systems/core.ledger.tool/pkg/config"
-	"github.com/ec-systems/core.ledger.tool/pkg/ledger"
-	"github.com/ec-systems/core.ledger.tool/pkg/types"
+	"github.com/ec-systems/core.ledger.service/pkg/client"
+	"github.com/ec-systems/core.ledger.service/pkg/config"
+	"github.com/ec-systems/core.ledger.service/pkg/ledger"
+	"github.com/ec-systems/core.ledger.service/pkg/types"
 	"github.com/olekukonko/tablewriter"
 
 	"fmt"
@@ -18,12 +18,20 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+const (
+	updatedCol = 1
+	statusCol  = 2
+	refCol     = 8
+	keyCol     = 16
+	orderCol   = 32
+	itemCol    = 64
+)
+
 func addTxCmd(root *RootCommand) {
-	//var cmd *cobra.Command
 
 	cmd := &cobra.Command{
 		Use:           "tx",
-		Short:         "List all transactions of a customer",
+		Short:         "List all transactions [holder id] [asset] [account id]",
 		Args:          cobra.RangeArgs(0, 3),
 		SilenceErrors: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -52,7 +60,7 @@ func addTxCmd(root *RootCommand) {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Configuration()
-			customer := ""
+			holder := ""
 
 			client, err := client.New(cmd.Context(), cfg.ClientOptions.Username, cfg.ClientOptions.Password, cfg.ClientOptions.Database,
 				client.ClientOptions(cfg.ClientOptions),
@@ -72,7 +80,7 @@ func addTxCmd(root *RootCommand) {
 			)
 
 			if len(args) > 0 {
-				customer = args[0]
+				holder = args[0]
 			}
 
 			asset := types.AllAssets
@@ -91,21 +99,101 @@ func addTxCmd(root *RootCommand) {
 				}
 			}
 
-			status := types.AllStatuses
-			if len(args) > 3 {
-				status, err = statuses.Parse(args[3])
-				if err != nil {
-					return err
+			/*
+				status := types.AllStatuses
+				if len(args) > 3 {
+					status, err = statuses.Parse(args[3])
+					if err != nil {
+						return err
+					}
 				}
+			*/
+
+			ref, err := cmd.Flags().GetBool("ref")
+			if err != nil {
+				return err
 			}
 
-			table := tablewriter.NewWriter(os.Stdout)
-			table.SetHeader([]string{"TX", "ID", "Date", "Updated", "Customer", "Account", "Order", "Item", "Asset", "Status", "Amount", "Ref"})
+			updated, err := cmd.Flags().GetBool("change")
+			if err != nil {
+				return err
+			}
 
-			err = l.Transactions(cmd.Context(), customer, asset, account, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
-				if tx.Status > status {
-					table.Append(tx.Row(false))
+			status, err := cmd.Flags().GetBool("status")
+			if err != nil {
+				return err
+			}
+
+			key, err := cmd.Flags().GetBool("key")
+			if err != nil {
+				return err
+			}
+
+			order, err := cmd.Flags().GetBool("order")
+			if err != nil {
+				return err
+			}
+
+			item, err := cmd.Flags().GetBool("item")
+			if err != nil {
+				return err
+			}
+
+			verify, err := cmd.Flags().GetBool("verify")
+			if err != nil {
+				return err
+			}
+
+			verify = verify && cfg.ClientOptions.ServerSigningPubKey != ""
+
+			columns := []string{"TX", "ID", "Date", "Holder", "Account", "Asset", "Amount"}
+			colFlag := uint8(0)
+
+			table := tablewriter.NewWriter(os.Stdout)
+
+			if updated {
+				columns = append(columns, "Updated")
+				colFlag |= updatedCol
+			}
+
+			if order {
+				columns = append(columns, "Order")
+				colFlag |= orderCol
+			}
+
+			if item {
+				columns = append(columns, "Item")
+				colFlag |= itemCol
+			}
+
+			if status {
+				columns = append(columns, "Status")
+				colFlag |= statusCol
+			}
+
+			if key {
+				columns = append(columns, "Key")
+				colFlag |= keyCol
+			}
+
+			if ref {
+				columns = append(columns, "Ref")
+				colFlag |= refCol
+			}
+
+			table.SetHeader(columns)
+
+			err = l.Transactions(cmd.Context(), holder, asset, account, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
+				if verify {
+					t, err := l.Get(cmd.Context(), tx.ID)
+					if err != nil {
+						return false, err
+					}
+
+					_ = t
 				}
+
+				table.Append(row(tx, colFlag))
 				return true, nil
 			})
 
@@ -115,11 +203,6 @@ func addTxCmd(root *RootCommand) {
 
 			table.Render()
 
-			_ = l
-			_ = asset
-			_ = customer
-			_ = status
-
 			return nil
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
@@ -128,4 +211,57 @@ func addTxCmd(root *RootCommand) {
 	}
 
 	root.AddCommand(cmd)
+
+	cmd.Flags().BoolP("ref", "r", false, "Show ref column")
+	cmd.Flags().BoolP("change", "c", false, "Show updated column")
+	cmd.Flags().BoolP("status", "s", false, "Show status column")
+	cmd.Flags().BoolP("key", "k", false, "Show key column")
+	cmd.Flags().BoolP("order", "o", false, "Show order column")
+	cmd.Flags().BoolP("item", "i", false, "Show item column")
+
+	cmd.Flags().BoolP("all", "a", false, "Show all columns")
+
+	cmd.Flags().BoolP("verify", "V", false, "Verify all transactions")
+}
+
+func row(t *ledger.Transaction, cols uint8) []string {
+	row := []string{}
+
+	row = append(row, fmt.Sprintf("%v", t.TX()))
+	row = append(row, t.ID.String())
+	row = append(row, t.Created.Format(ledger.TimeFormat))
+	row = append(row, t.Holder)
+	row = append(row, string(t.Account))
+	row = append(row, t.Asset.String())
+	row = append(row, t.Amount.String())
+
+	if isSet(cols, updatedCol) {
+		row = append(row, t.Modified.Format(ledger.TimeFormat))
+	}
+
+	if isSet(cols, orderCol) {
+		row = append(row, t.Order)
+	}
+
+	if isSet(cols, itemCol) {
+		row = append(row, t.Item)
+	}
+
+	if isSet(cols, statusCol) {
+		row = append(row, t.Status.String())
+	}
+
+	if isSet(cols, keyCol) {
+		row = append(row, t.Key())
+	}
+
+	if isSet(cols, refCol) {
+		row = append(row, string(t.Reference))
+	}
+
+	return row
+}
+
+func isSet(val uint8, col uint8) bool {
+	return val&col == col
 }

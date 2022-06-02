@@ -8,9 +8,9 @@ import (
 	"unsafe"
 
 	"github.com/creasty/defaults"
-	"github.com/ec-systems/core.ledger.tool/pkg/config"
-	"github.com/ec-systems/core.ledger.tool/pkg/logger"
-	"github.com/ec-systems/core.ledger.tool/pkg/types"
+	"github.com/ec-systems/core.ledger.service/pkg/config"
+	"github.com/ec-systems/core.ledger.service/pkg/logger"
+	"github.com/ec-systems/core.ledger.service/pkg/types"
 
 	"github.com/fsnotify/fsnotify"
 	homedir "github.com/mitchellh/go-homedir"
@@ -30,8 +30,8 @@ func GetRootCmd(version *Version) *RootCommand {
 	var rootCmd *RootCommand
 
 	rootCmd = &RootCommand{
-		Command: cobra.Command{Use: "core.ledger.tool",
-			Short:         "EC core workflow worker",
+		Command: cobra.Command{Use: "core.ledger.service",
+			Short:         "EC core ledger service",
 			SilenceErrors: true,
 			PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 				err := rootCmd.initializeConfig(cmd)
@@ -47,9 +47,8 @@ func GetRootCmd(version *Version) *RootCommand {
 					logger.Info(cfg.String())
 				}
 
-				if cfg.Assets != nil && len(cfg.Assets) > 0 {
-
-					_ = cfg.Assets
+				if cfg.Assets == nil || len(cfg.Assets) == 0 {
+					cfg.Assets = types.DefaultAssetNames
 				}
 
 				return nil
@@ -68,9 +67,12 @@ func GetRootCmd(version *Version) *RootCommand {
 	addRemoveCmd(rootCmd)
 	addTxCmd(rootCmd)
 	addAccountsCmd(rootCmd)
-	addCustomerCmd(rootCmd)
+	addHoldersCmd(rootCmd)
 	addKeysCmd(rootCmd)
 	addHistoryCmd(rootCmd)
+	addOrdersCmd(rootCmd)
+	addServiceCmd(rootCmd)
+	addInitCmd(rootCmd)
 
 	return rootCmd
 }
@@ -103,7 +105,7 @@ func (r *RootCommand) init() error {
 	r.PersistentFlags().StringP("user", "u", cfg.ClientOptions.Username, "Database user")
 	r.bind("ClientOptions.Username", "user")
 
-	r.PersistentFlags().StringP("password", "p", cfg.ClientOptions.Password, "Database user password")
+	r.PersistentFlags().StringP("password", "P", cfg.ClientOptions.Password, "Database user password")
 	r.bind("ClientOptions.Password", "password")
 
 	r.PersistentFlags().StringP("database", "d", cfg.ClientOptions.Database, "Database name")
@@ -121,15 +123,21 @@ func (r *RootCommand) init() error {
 	r.PersistentFlags().String("ca", cfg.ClientOptions.MTLsOptions.ClientCAs, "MTLs ca file name")
 	r.bind("ClientOptions.MTLsOptions.ClientCAs", "ca")
 
-	r.PersistentFlags().StringToString("assets", types.DefaultAssetMap.Map(), "Supported assets")
+	r.PersistentFlags().StringToString("assets", nil, "Supported assets")
 	r.bind("Assets", "assets")
 
-	//r.PersistentFlags().StringToInt("statuses", types.DefaultStatusMap.Map(), "Supported statuses")
+	r.PersistentFlags().String("signing-key", cfg.ClientOptions.ServerSigningPubKey, "Path to the public key to verify signatures when presents")
+	r.bind("ClientOptions.ServerSigningPubKey", "signing-key")
 
 	statuses := types.DefaultStatusMap
 
 	r.PersistentFlags().Var(&statuses, "statuses", "Supported statuses")
 	r.bind("Statuses", "statuses")
+
+	format := types.Protobuf
+
+	r.PersistentFlags().VarP(&format, "format", "f", "Format of the database values")
+	r.bind("Format", "format")
 
 	return nil
 }
@@ -177,13 +185,14 @@ func (r *RootCommand) initializeConfig(cmd *cobra.Command) error {
 		config.DurationHookFunc(),
 		logger.LogLevelHookFunc(),
 		types.StatusHookFunc(),
+		types.FormatHookFunc(),
 		mapstructure.StringToTimeDurationHookFunc(),
 		mapstructure.StringToSliceHookFunc(","),
 	)
 
 	err := viper.Unmarshal(config.Configuration(), viper.DecodeHook(options))
 	if err != nil {
-		return fmt.Errorf("Unmarshal config file: %v", err)
+		return fmt.Errorf("unmarshal config file: %v", err)
 	}
 
 	return nil
@@ -196,17 +205,20 @@ func (r *RootCommand) GetVersion() *Version {
 func (r *RootCommand) bind(target string, source string) {
 	flag := r.PersistentFlags().Lookup(source)
 	if flag == nil {
-		logger.Error("Flag not found", target, source)
-		return
+		flag = r.Flags().Lookup(source)
+		if flag == nil {
+			logger.Errorf("Flag '%v' not found", source)
+			return
+		}
 	}
 
 	viper.BindPFlag(target, flag)
 }
 
-func (r *RootCommand) bindCmdFlag(flags *pflag.FlagSet, target string, source string) {
+func (r *RootCommand) bindFlags(flags *pflag.FlagSet, target string, source string) {
 	flag := flags.Lookup(source)
 	if flag == nil {
-		logger.Error("Flag not found", target, source)
+		logger.Errorf("Flag '%v' not found", source)
 		return
 	}
 

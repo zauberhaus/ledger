@@ -1,14 +1,14 @@
 package cmd
 
 import (
-	"strconv"
 	"strings"
 
-	"github.com/ec-systems/core.ledger.tool/pkg/client"
-	"github.com/ec-systems/core.ledger.tool/pkg/config"
-	"github.com/ec-systems/core.ledger.tool/pkg/ledger"
-	"github.com/ec-systems/core.ledger.tool/pkg/logger"
-	"github.com/ec-systems/core.ledger.tool/pkg/types"
+	"github.com/ec-systems/core.ledger.service/pkg/client"
+	"github.com/ec-systems/core.ledger.service/pkg/config"
+	"github.com/ec-systems/core.ledger.service/pkg/ledger"
+	"github.com/ec-systems/core.ledger.service/pkg/logger"
+	"github.com/ec-systems/core.ledger.service/pkg/types"
+	"github.com/shopspring/decimal"
 
 	"fmt"
 
@@ -18,10 +18,8 @@ import (
 )
 
 func addRemoveCmd(root *RootCommand) {
-	var cmd *cobra.Command
-
-	cmd = &cobra.Command{
-		Use:           "remove <customer> <asset> <amount> [order] [order item]",
+	cmd := &cobra.Command{
+		Use:           "remove <holder id> <asset> <amount> [order] [order item]",
 		Short:         "Remove assets from the ledger",
 		Args:          cobra.RangeArgs(3, 5),
 		SilenceErrors: true,
@@ -52,9 +50,9 @@ func addRemoveCmd(root *RootCommand) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Configuration()
 
-			customer := args[0]
+			holder := args[0]
 
-			amount, err := strconv.ParseFloat(args[2], 64)
+			amount, err := decimal.NewFromString(args[2])
 			if err != nil {
 				return fmt.Errorf("invalid amount format: %v", err)
 			}
@@ -91,14 +89,17 @@ func addRemoveCmd(root *RootCommand) {
 			defer client.Close(cmd.Context())
 
 			assets := cfg.Assets
-			l := ledger.New(client, ledger.SupportedAssets(assets))
+			l := ledger.New(client,
+				ledger.SupportedAssets(assets),
+				ledger.SupportedStatuses(cfg.Statuses),
+			)
 
-			asset, err := l.ParseAsset(args[1])
+			asset, err := assets.Parse(args[1])
 			if err != nil {
 				return err
 			}
 
-			id, err := l.Remove(cmd.Context(), customer, asset, amount,
+			id, err := l.Remove(cmd.Context(), holder, asset, amount,
 				ledger.Account(account),
 				ledger.OrderID(order),
 				ledger.OrderItemID(item),
@@ -117,9 +118,7 @@ func addRemoveCmd(root *RootCommand) {
 		},
 	}
 
-	cmd.Flags().StringP("account", "a", "", "Customer account id (optional)")
-	cmd.Flags().StringP("order", "o", "", "Order id (optional)")
-	cmd.Flags().StringP("order-item", "i", "", "Order item id (optional)")
+	cmd.Flags().StringP("account", "a", "", "Account id (optional)")
 
 	root.AddCommand(cmd)
 }

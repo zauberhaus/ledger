@@ -1,6 +1,6 @@
 package index
 
-import "github.com/ec-systems/core.ledger.tool/pkg/types"
+import "github.com/ec-systems/core.ledger.service/pkg/types"
 
 var Account = AccountIndex{
 	index{

@@ -1,0 +1,32 @@
+version: "3.5"
+services:
+  immudb:
+    container_name: immudb
+    image: codenotary/immudb
+    command:
+      - --synced
+      - --web-server=false
+      - --pgsql-server=false
+    networks:
+      - ledger-network
+    ports:
+      - 3322:3322
+  core.ledger.service:
+    build: .
+    container_name: ledger
+    environment:
+      CLIENT_OPTIONS_ADDRESS: immudb
+      CLIENT_OPTIONS_PORT: 3322
+      CLIENT_OPTIONS_USERNAME: immudb
+      CLIENT_OPTIONS_PASSWORD: immudb
+      CLIENT_OPTIONS_MTLS: "false"
+      CLIENT_OPTIONS_DATABASE: defaultdb
+    networks:
+      - ledger-network
+    ports:
+      - 8888:8888
+      - 9094:9094
+networks:
+  ledger-network:
+    driver: bridge
+    name: ledger-network

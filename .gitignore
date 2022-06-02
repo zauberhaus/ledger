@@ -1,4 +1,4 @@
-core.ledger.tool
+core.ledger.service
 .vscode/
 *.crt
 *.key
@@ -8,3 +8,5 @@ _*.yaml
 __debug_bin
 data/*
 certs/*
+pkg/ledger/test_data/
+.state*

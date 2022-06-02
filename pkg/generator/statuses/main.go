@@ -6,9 +6,11 @@ import (
 	"io/ioutil"
 	"log"
 	"path"
+	"sort"
 	"strings"
 
-	"github.com/ec-systems/core.ledger.tool/pkg/logger"
+	"github.com/ec-systems/core.ledger.service/pkg/logger"
+	"golang.org/x/exp/maps"
 	"gopkg.in/yaml.v3"
 )
 
@@ -23,15 +25,25 @@ func main() {
 		log.Printf("yamlFile.Get err   #%v ", err)
 	}
 
-	var status map[string]int
+	var statuses map[string]int
 
-	err = yaml.Unmarshal(yamlFile, &status)
+	err = yaml.Unmarshal(yamlFile, &statuses)
 	if err != nil {
 		log.Fatalf("Unmarshal: %v", err)
 	}
 
-	status["Unknown"] = -1
-	status["Created"] = 0
+	if statuses == nil {
+		statuses = make(map[string]int)
+	}
+
+	statuses["Unknown"] = -1
+	statuses["Created"] = 0
+	statuses["Canceled"] = 999
+	statuses["Finished"] = 1000
+	statuses["CancellationFinished"] = 998
+
+	values := maps.Values(statuses)
+	sort.Ints(values)
 
 	var sb strings.Builder
 
@@ -40,15 +52,24 @@ func main() {
 
 	sb.WriteString("const (\n")
 
-	for k, v := range status {
-		sb.WriteString(fmt.Sprintf("\t%v Status = %v\n", k, v))
+	for _, val := range values {
+		for k, v := range statuses {
+			if v == val {
+				sb.WriteString(fmt.Sprintf("\t%v Status = %v\n", k, v))
+			}
+		}
 	}
 
 	sb.WriteString(")\n\n")
 
 	sb.WriteString("var DefaultStatusMap = Statuses{\n")
-	for k := range status {
-		sb.WriteString(fmt.Sprintf("\t\"%v\": %v,\n", k, k))
+
+	for _, val := range values {
+		for k, v := range statuses {
+			if v == val {
+				sb.WriteString(fmt.Sprintf("\t\"%v\": %v,\n", k, k))
+			}
+		}
 	}
 
 	// sb.WriteString("}\n\n")

@@ -1,12 +1,12 @@
-//go:generate go run github.com/ec-systems/core.ledger.tool/pkg/generator/statuses/
+//go:generate go run github.com/ec-systems/core.ledger.service/pkg/generator/statuses/
 
 package types
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -39,53 +39,39 @@ func (s Statuses) Map() map[string]int {
 }
 
 func (s Statuses) String() string {
-	data, err := s.MarshalText2()
-	if err != nil {
-		return ""
+	list := []string{}
+
+	for k, v := range s {
+		list = append(list, fmt.Sprintf("%v=%v", k, int(v)))
 	}
 
-	return string(data)
+	return strings.Join(list, ",")
 }
 
 func (s *Statuses) Set(text string) error {
-	return s.UnmarshalText2([]byte(text))
-}
-
-func (s Statuses) Type() string {
-	return "Statuses"
-}
-
-func (s Statuses) MarshalText2() ([]byte, error) {
-	m := map[string]int{}
-
-	for k, v := range s {
-		m[k] = int(v)
-	}
-
-	data, err := json.Marshal(&m)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
-}
-
-func (s *Statuses) UnmarshalText2(data []byte) error {
-	m := map[string]int{}
-
-	err := json.Unmarshal(data, &m)
-	if err != nil {
-		return err
-	}
-
+	pairs := strings.Split(text, ",")
 	statuses := map[string]Status{}
-	for k, v := range m {
-		statuses[k] = Status(v)
+
+	for _, pair := range pairs {
+		kv := strings.Split(pair, "=")
+		if len(kv) == 2 {
+			key := strings.Trim(kv[0], " ")
+			id, err := strconv.ParseInt(kv[1], 10, 64)
+			if err != nil {
+				return err
+			}
+
+			statuses[key] = Status(id)
+		}
 	}
 
 	*s = statuses
 
 	return nil
+}
+
+func (s Statuses) Type() string {
+	return "Statuses"
 }
 
 func StatusHookFunc() mapstructure.DecodeHookFuncType {
@@ -105,19 +91,19 @@ func StatusHookFunc() mapstructure.DecodeHookFuncType {
 			return data, nil
 		}
 
-		statusses := Statuses{}
+		statuses := Statuses{}
 
-		err := statusses.Set(data.(string))
+		err := statuses.Set(data.(string))
 		if err != nil {
 			return nil, err
 		}
 
 		// Format/decode/parse the data and return the new value
-		return statusses, nil
+		return statuses, nil
 	}
 }
 
-type Status int
+type Status int64
 
 func (s Status) String() string {
 	if s == -1 {
@@ -144,7 +130,7 @@ func (s Status) Valid() bool {
 }
 
 func (s Status) MarshalText() (text []byte, err error) {
-	return []byte(fmt.Sprintf("%v", s)), nil
+	return []byte(fmt.Sprintf("%v", int(s))), nil
 }
 
 func (s *Status) UnmarshalText(text []byte) error {

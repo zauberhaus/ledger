@@ -2,22 +2,31 @@ package ledger
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"hash/crc64"
+	"strings"
 	"time"
 
 	"github.com/codenotary/immudb/pkg/api/schema"
+	"github.com/shopspring/decimal"
 
-	"github.com/ec-systems/core.ledger.tool/pkg/client"
-	"github.com/ec-systems/core.ledger.tool/pkg/ledger/index"
-	"github.com/ec-systems/core.ledger.tool/pkg/logger"
-	"github.com/ec-systems/core.ledger.tool/pkg/types"
+	"github.com/ec-systems/core.ledger.service/pkg/client"
+	"github.com/ec-systems/core.ledger.service/pkg/ledger/index"
+	"github.com/ec-systems/core.ledger.service/pkg/logger"
+	"github.com/ec-systems/core.ledger.service/pkg/types"
 )
 
 const (
 	IDLength = 6
+	Version  = uint16(1)
+
+	AccountNotFoundError = 1
+	TooManyAccountsError = 2
+	NotEnoughAssetsError = 3
+	BadRequestError      = 400
+	NotFoundError        = 404
+	InternalError        = 500
 )
 
 type Ledger struct {
@@ -27,101 +36,121 @@ type Ledger struct {
 
 	assets   types.Assets
 	statuses types.Statuses
+
+	format types.Format
 }
 
 func New(client *client.Client, options ...LedgerOption) *Ledger {
 	ledger := &Ledger{
 		client: client,
+		format: types.JSON,
 	}
 
 	for _, option := range options {
-		option.Set(ledger)
+		if option != nil {
+			option.Set(ledger)
+		}
 	}
 
 	return ledger
 }
 
-func (l *Ledger) Assets() types.Assets {
+func (l *Ledger) SupportedAssets() types.Assets {
 	return l.assets
 }
 
-func (l *Ledger) Statuses() types.Statuses {
+func (l *Ledger) SupportedStatus() types.Statuses {
 	return l.statuses
+}
+
+func (l *Ledger) Assets(ctx context.Context) ([]types.Asset, error) {
+	assets := []types.Asset{}
+
+	err := l.ForEach(ctx, index.Asset.Assets(), false, func(ctx context.Context, tx *Transaction) (bool, error) {
+		assets = append(assets, tx.Asset)
+		return true, nil
+	})
+
+	if err != nil {
+		return nil, NewError(InternalError, "failed to load list of assets: %v", err)
+	}
+
+	return assets, nil
 }
 
 func (l *Ledger) AccountInfo(ctx context.Context, account types.Account) (*types.AccountInfo, error) {
 	if account == "" {
-		return nil, fmt.Errorf("account is mandatory")
+		return nil, NewError(BadRequestError, "account is mandatory")
 	}
 
-	var info *types.AccountInfo
+	entries, err := l.client.Scan(ctx, string(index.Account.Key(account)), 1, false)
+	if err != nil && strings.HasPrefix(err.Error(), "cant") {
+		return nil, NewError(InternalError, "get account info failed: %v", err)
+	}
 
-	err := l.ForEach(ctx, string(index.Account.Key(account)), false, func(ctx context.Context, tx *Transaction) (bool, error) {
-		info = &types.AccountInfo{
-			Account:  tx.Account,
-			Customer: tx.Customer,
-			Asset:    tx.Asset,
+	if len(entries) > 0 {
+		tx := &Transaction{}
+		err = tx.Parse(entries[0])
+		if err != nil {
+			return nil, err
 		}
 
-		return false, nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("get account info failed: %v", err)
+		return &types.AccountInfo{
+			Account: tx.Account,
+			Holder:  tx.Holder,
+			Asset:   tx.Asset,
+		}, nil
 	}
 
-	return info, nil
+	return nil, nil
 }
 
-func (l *Ledger) Accounts(ctx context.Context, customer string, asset types.Asset) ([]types.Account, error) {
+func (l *Ledger) Accounts(ctx context.Context, holder string, asset types.Asset) ([]types.Account, error) {
 	accounts := []types.Account{}
 
-	if customer == "" {
-		return nil, fmt.Errorf("accounts: customer is mandatory")
+	if holder == "" {
+		return nil, NewError(BadRequestError, "accounts: holder is mandatory")
 	}
 
-	err := l.ForEach(ctx, index.Customer.Accounts(customer, asset), false, func(ctx context.Context, tx *Transaction) (bool, error) {
-		if customer == tx.Customer {
+	err := l.ForEach(ctx, index.Holder.Accounts(holder, asset), false, func(ctx context.Context, tx *Transaction) (bool, error) {
+		if holder == tx.Holder {
 			accounts = append(accounts, tx.Account)
 		} else {
-			logger.Errorf("accounts: unexpected customer %v!=%v in %v", customer, tx.Customer, tx.tx)
+			logger.Errorf("accounts: unexpected holder %v!=%v in %v", holder, tx.Holder, tx.tx)
 		}
 		return true, nil
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("list accounts failed: %v", err)
+		return nil, NewError(InternalError, "list accounts failed: %v", err)
 	}
 
 	return accounts, nil
 }
 
-func (l *Ledger) Customers(ctx context.Context) ([][]string, error) {
+func (l *Ledger) Holders(ctx context.Context, f func(holder string, account types.Account, asset types.Asset) (bool, error)) error {
 
-	customers := [][]string{}
-
-	err := l.ForEach(ctx, index.Customer.All(), false, func(ctx context.Context, tx *Transaction) (bool, error) {
-		customers = append(customers, []string{tx.Customer, tx.Account.String(), tx.Asset.String()})
-		return true, nil
+	err := l.ForEach(ctx, index.Holder.All(), false, func(ctx context.Context, tx *Transaction) (bool, error) {
+		return f(tx.Holder, tx.Account, tx.Asset)
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("list accounts failed: %v", err)
+		return NewError(InternalError, "list accounts failed: %v", err)
 	}
 
-	return customers, nil
+	return nil
 }
 
-func (l *Ledger) Balance(ctx context.Context, customer string, asset types.Asset, account types.Account, status types.Status) (map[types.Asset]*types.Balance, error) {
+func (l *Ledger) Balance(ctx context.Context, holder string, asset types.Asset, account types.Account, status types.Status) (map[types.Asset]*types.Balance, error) {
 	assets := map[types.Asset]*types.Balance{}
 
-	if customer == "" {
-		return nil, fmt.Errorf("balance: customer is mandatory")
+	if holder == "" {
+		return nil, NewError(BadRequestError, "balance: holder is mandatory")
 	}
 
-	err := l.ForEach(ctx, index.Transaction.Scan(customer, asset, account), false, func(ctx context.Context, tx *Transaction) (bool, error) {
+	err := l.ForEach(ctx, index.Transaction.Scan(holder, asset, account), false, func(ctx context.Context, tx *Transaction) (bool, error) {
 
-		if customer == tx.Customer {
+		if holder == tx.Holder {
 			balance, ok := assets[tx.Asset]
 			if !ok {
 				balance = types.NewBalance(status)
@@ -130,7 +159,7 @@ func (l *Ledger) Balance(ctx context.Context, customer string, asset types.Asset
 
 			balance.Add(tx.Account, tx.Amount, tx.Status)
 		} else {
-			logger.Errorf("balance: unexpected customer %v!=%v in %v", customer, tx.Customer, tx.tx)
+			logger.Errorf("balance: unexpected holder %v!=%v in %v", holder, tx.Holder, tx.tx)
 		}
 
 		return true, nil
@@ -143,31 +172,88 @@ func (l *Ledger) Balance(ctx context.Context, customer string, asset types.Asset
 	return assets, nil
 }
 
-func (l *Ledger) Transactions(ctx context.Context, customer string, asset types.Asset, account types.Account, f func(context.Context, *Transaction) (bool, error)) error {
-	return l.ForEach(ctx, index.Transaction.Scan(customer, asset, account), false, func(ctx context.Context, tx *Transaction) (bool, error) {
-		if customer != "" && customer != tx.Customer {
-			return false, fmt.Errorf("invalid customer %v in tx %v (%v)", tx.Customer, tx.ID, customer)
+func (l *Ledger) AssetBalance(ctx context.Context, asset types.Asset) (map[types.Asset]decimal.Decimal, error) {
+	assets := map[types.Asset]decimal.Decimal{}
+
+	err := l.ForEach(ctx, index.AssetTx.Asset(asset), false, func(ctx context.Context, tx *Transaction) (bool, error) {
+		balance, ok := assets[tx.Asset]
+		if !ok {
+			balance = decimal.Zero
+		}
+
+		assets[tx.Asset] = balance.Add(tx.Amount)
+		return true, nil
+	})
+
+	if err != nil {
+		return nil, NewError(InternalError, "failed to load list of assets: %v", err)
+	}
+
+	return assets, nil
+}
+
+func (l *Ledger) Transactions(ctx context.Context, holder string, asset types.Asset, account types.Account, f func(context.Context, *Transaction) (bool, error)) error {
+	return l.ForEach(ctx, index.Transaction.Scan(holder, asset, account), false, func(ctx context.Context, tx *Transaction) (bool, error) {
+		if holder != "" && holder != tx.Holder {
+			return false, NewError(BadRequestError, "invalid holder %v in tx %v (%v)", tx.Holder, tx.ID, holder)
 		}
 
 		if asset != types.AllAssets && asset != tx.Asset {
-			return false, fmt.Errorf("invalid asset %v in tx %v (%v)", tx.Asset, tx.ID, asset)
+			return false, NewError(BadRequestError, "invalid asset %v in tx %v (%v)", tx.Asset, tx.ID, asset)
 		}
 
 		if account != types.AllAccounts && account != tx.Account {
-			return false, fmt.Errorf("invalid account %v in tx %v (%v)", tx.Account, tx.ID, account)
+			return false, NewError(BadRequestError, "invalid account %v in tx %v (%v)", tx.Account, tx.ID, account)
 		}
 
 		return f(ctx, tx)
 	})
 }
 
-func (l *Ledger) Get(ctx context.Context, transaction string) (*Transaction, error) {
+func (l *Ledger) Orders(ctx context.Context, holder string, f func(context.Context, *Transaction) (bool, error)) error {
+	if holder == "" {
+		return NewError(BadRequestError, "holder is mandatory")
+	}
+
+	return l.ForEach(ctx, index.Order.Orders(holder), false, func(ctx context.Context, tx *Transaction) (bool, error) {
+		if holder != "" && holder != tx.Holder {
+			return false, NewError(BadRequestError, "invalid holder %v in tx %v (%v)", tx.Holder, tx.ID, holder)
+		}
+
+		return f(ctx, tx)
+	})
+}
+
+func (l *Ledger) OrderItems(ctx context.Context, holder string, order string, item string, f func(context.Context, *Transaction) (bool, error)) error {
+	if order == "" {
+		return NewError(BadRequestError, "holder is mandatory")
+	}
+
+	return l.ForEach(ctx, index.OrderItem.Scan(holder, order, item), false, func(ctx context.Context, tx *Transaction) (bool, error) {
+		if holder != "" && holder != tx.Holder {
+			return false, NewError(BadRequestError, "invalid holder %v in tx %v (%v)", tx.Holder, tx.ID, holder)
+		}
+
+		if order != "" && order != tx.Order {
+			return false, NewError(BadRequestError, "invalid order %v in tx %v (%v)", tx.Order, tx.ID, order)
+		}
+
+		if item != "" && item != tx.Item {
+			return false, NewError(BadRequestError, "invalid item %v in tx %v (%v)", tx.Item, tx.ID, item)
+		}
+
+		return f(ctx, tx)
+	})
+}
+
+func (l *Ledger) Get(ctx context.Context, transaction types.ID) (*Transaction, error) {
 	entry, err := l.client.Get(ctx, string(index.Key.Key(transaction)))
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := ParseTransaction(entry.Tx, string(entry.Key), entry.Value)
+	tx := &Transaction{}
+	err = tx.Parse(entry)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +261,7 @@ func (l *Ledger) Get(ctx context.Context, transaction string) (*Transaction, err
 	return tx, nil
 }
 
-func (l *Ledger) Status(ctx context.Context, key string, status types.Status) (*Transaction, error) {
+func (l *Ledger) Status(ctx context.Context, key types.ID, status types.Status) (*Transaction, error) {
 	tx, err := l.Get(ctx, key)
 	if err != nil {
 		return nil, err
@@ -184,7 +270,12 @@ func (l *Ledger) Status(ctx context.Context, key string, status types.Status) (*
 	if tx.Status != status {
 		tx.Status = status
 
-		txID, _, err := l.Create(ctx, tx)
+		data, err := tx.Bytes(l.format)
+		if err != nil {
+			return nil, NewError(InternalError, "marshal transaction failed: %v", err)
+		}
+
+		txID, err := l.client.Set(ctx, index.Key.Key(tx.ID), data)
 		if err != nil {
 			return nil, err
 		}
@@ -195,9 +286,9 @@ func (l *Ledger) Status(ctx context.Context, key string, status types.Status) (*
 	return tx, nil
 }
 
-func (l *Ledger) CreateTx(ctx context.Context, customer string, asset types.Asset, amount float64, options ...TransactionOption) (*Transaction, error) {
-	if amount == 0 {
-		return nil, fmt.Errorf("transaction for customer %v with 0 %v", customer, asset)
+func (l *Ledger) CreateTx(ctx context.Context, holder string, asset types.Asset, amount decimal.Decimal, options ...TransactionOption) (*Transaction, error) {
+	if amount.IsZero() {
+		return nil, NewError(BadRequestError, "transaction for holder %v with 0 %v", holder, asset)
 	}
 
 	id, err := l.NewID()
@@ -206,28 +297,29 @@ func (l *Ledger) CreateTx(ctx context.Context, customer string, asset types.Asse
 	}
 
 	tx := &Transaction{
-		Date:     time.Now(),
+		Modified: time.Now(),
 		ID:       id,
-		Customer: customer,
+		Holder:   holder,
 
-		Status:  types.Created,
-		Asset:   asset,
-		Amount:  amount,
-		Version: uint16(Version),
+		Status: types.Created,
+		Asset:  asset,
+		Amount: amount,
 	}
 
 	for _, option := range options {
-		option.Set(tx)
+		if option != nil {
+			option.Set(tx)
+		}
 	}
 
 	if tx.Account == "" {
-		accounts, err := l.Accounts(ctx, customer, asset)
+		accounts, err := l.Accounts(ctx, holder, asset)
 		if err != nil {
 			return nil, err
 		}
 
 		if len(accounts) == 0 {
-			account, err := types.NewAccount(customer, asset)
+			account, err := l.NewAccount(ctx, holder, asset)
 			if err != nil {
 				return nil, err
 			}
@@ -235,197 +327,139 @@ func (l *Ledger) CreateTx(ctx context.Context, customer string, asset types.Asse
 			tx.Account = account
 		} else if len(accounts) == 1 {
 			tx.Account = accounts[0]
-		} else if tx.Amount >= 0 {
-			return nil, fmt.Errorf("more than one account found for customer %v", customer)
+		} else if tx.Amount.IsZero() || tx.Amount.IsPositive() {
+			return nil, NewError(TooManyAccountsError, "more than one account found for holder %v", holder)
 		}
 	} else {
 		info, err := l.AccountInfo(ctx, tx.Account)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read account %v info", tx.Account)
+			return nil, NewError(InternalError, "failed to read account %v info", tx.Account)
 		}
 
 		if !l.multi && info == nil {
-			return nil, fmt.Errorf("account %v not found", tx.Account)
+			return nil, NewError(AccountNotFoundError, "account %v not found", tx.Account)
 
 		}
 
 		if info != nil {
-			if info.Customer != tx.Customer {
-				return nil, fmt.Errorf("invalid customer %v for account %v (%v)", tx.Customer, tx.Account, info.Customer)
+			if info.Holder != tx.Holder {
+				return nil, NewError(BadRequestError, "invalid holder %v for account %v (%v)", tx.Holder, tx.Account, info.Holder)
 			}
 
 			if info.Asset != tx.Asset {
-				return nil, fmt.Errorf("invalid asset %v for account %v (%v)", tx.Asset, tx.Account, info.Asset)
+				return nil, NewError(BadRequestError, "invalid asset %v for account %v (%v)", tx.Asset, tx.Account, info.Asset)
 			}
 		}
 	}
 
-	if tx.Amount < 0 && !l.overdraw {
-		balances, err := l.Balance(ctx, customer, asset, tx.Account, types.Created)
+	if tx.Amount.IsNegative() && !l.overdraw {
+		negAmount := amount.Neg()
+
+		balances, err := l.Balance(ctx, holder, asset, tx.Account, types.Created)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get customer %v balance: %v", customer, err)
+			return nil, NewError(InternalError, "failed to get holder %v balance: %v", holder, err)
 		}
 
 		balance, ok := balances[asset]
 		if !ok {
-			return nil, fmt.Errorf("no %v account found for customer %v", asset, customer)
+			return nil, NewError(NotFoundError, "no %v account found for holder %v", asset, holder)
 		}
 
-		if balance.Sum+amount < 0 {
-			return nil, fmt.Errorf("balance too low to remove %v %f for customer %v", asset, -amount, customer)
+		if balance.Sum.LessThan(negAmount) {
+			return nil, NewError(NotEnoughAssetsError, "balance too low to remove %v %v for holder %v", asset, negAmount, holder)
 		}
 
 		for k, v := range balance.Accounts {
-			if v.Sum+amount >= 0 {
+			if !v.Sum.LessThan(negAmount) {
 				tx.Account = k
 				break
 			}
 		}
 
 		if tx.Account == "" {
-			return nil, fmt.Errorf("no account found with enough balance to remove %v %f for customer %v", asset, -amount, customer)
+			return nil, NewError(NotFoundError, "no account found with enough balance to remove %v %v for holder %v", asset, negAmount, holder)
 		}
 	}
 
 	if ok := tx.Account.Check(); !ok {
-		return nil, fmt.Errorf("invalid checksum for account %v", tx.Account)
+		return nil, NewError(BadRequestError, "invalid checksum for account %v", tx.Account)
 	}
 
-	txID, key, err := l.Create(ctx, tx)
+	return l.Create(ctx, tx)
+}
+
+func (l *Ledger) Create(ctx context.Context, tx *Transaction) (*Transaction, error) {
+	ops, key, err := l.CreateOperations(tx)
 	if err != nil {
 		return nil, err
 	}
 
+	txID, err := l.client.Exec(ctx, ops...)
+
 	tx.tx = txID
 	tx.key = key
 
-	return tx, nil
+	return tx, err
 }
 
-func (l *Ledger) Create(ctx context.Context, tx *Transaction) (uint64, string, error) {
-	tx.Date = time.Now()
-
-	if tx.Created.IsZero() {
-		tx.Created = tx.Date
+func (l *Ledger) Add(ctx context.Context, holder string, asset types.Asset, amount decimal.Decimal, options ...TransactionOption) (*Transaction, error) {
+	if amount.IsZero() || amount.IsNegative() {
+		return nil, NewError(BadRequestError, "can't add %v %v", asset, amount)
 	}
 
-	if !tx.Account.Check() {
-		return 0, "", fmt.Errorf("checksum check failed for '%v'", tx.Account)
-	}
-
-	if !tx.Asset.Check(l.assets) {
-		return 0, "", fmt.Errorf("invalid asset '%v'", tx.Asset)
-	}
-
-	if tx.Customer == "" {
-		return 0, "", fmt.Errorf("customer is empty")
-	}
-
-	if tx.ID == "" {
-		return 0, "", fmt.Errorf("customer '%v' transaction id is empty", tx.Customer)
-	}
-
-	if tx.Amount == 0 {
-		return 0, "", nil
-	}
-
-	kv := &schema.Op_Kv{
-		Kv: &schema.KeyValue{
-			Key:   index.Key.Key(tx.ID),
-			Value: tx.Bytes(),
-		},
-	}
-
-	var order *schema.Op_Ref
-	if tx.Order != "" || tx.Item != "" {
-		order = &schema.Op_Ref{
-			Ref: &schema.ReferenceRequest{
-				ReferencedKey: kv.Kv.Key,
-				Key:           index.Order.Key(tx.Order, tx.Item, tx.ID),
-				BoundRef:      false,
-			},
-		}
-	}
-
-	transaction := &schema.Op_Ref{
-		Ref: &schema.ReferenceRequest{
-			ReferencedKey: kv.Kv.Key,
-			Key:           index.Transaction.Key(tx.Customer, tx.Asset, tx.Account, tx.ID),
-			BoundRef:      false,
-		},
-	}
-
-	customer := &schema.Op_Ref{
-		Ref: &schema.ReferenceRequest{
-			ReferencedKey: kv.Kv.Key,
-			Key:           index.Customer.Key(tx.Customer, tx.Asset, tx.Account),
-			BoundRef:      false,
-		},
-	}
-
-	account := &schema.Op_Ref{
-		Ref: &schema.ReferenceRequest{
-			ReferencedKey: kv.Kv.Key,
-			Key:           index.Account.Key(tx.Account),
-			BoundRef:      false,
-		},
-	}
-
-	asset := &schema.Op_Ref{
-		Ref: &schema.ReferenceRequest{
-			ReferencedKey: kv.Kv.Key,
-			Key:           index.Asset.Key(tx.Asset, tx.Customer, tx.Account),
-			BoundRef:      false,
-		},
-	}
-
-	/*
-		zasset := &schema.Op_ZAdd{
-			ZAdd: &schema.ZAddRequest{
-				Set: []byte(tx.Asset),
-				Key: kv.Kv.Key,
-			},
-		}
-	*/
-
-	txID, err := l.client.Exec(ctx, kv, order, transaction, customer, account, asset)
-	return txID, string(kv.Kv.Key), err
+	return l.CreateTx(ctx, holder, asset, amount, options...)
 }
 
-func (l *Ledger) Add(ctx context.Context, customer string, asset types.Asset, amount float64, options ...TransactionOption) (*Transaction, error) {
-	if amount <= 0 {
-		return nil, fmt.Errorf("can't add %v %v", asset, amount)
+func (l *Ledger) Remove(ctx context.Context, holder string, asset types.Asset, amount decimal.Decimal, options ...TransactionOption) (*Transaction, error) {
+	if amount.IsZero() || amount.IsNegative() {
+		return nil, NewError(BadRequestError, "can't remove %v %v", asset, amount.Neg())
 	}
 
-	return l.CreateTx(ctx, customer, asset, amount, options...)
+	return l.CreateTx(ctx, holder, asset, amount.Neg(), options...)
 }
 
-func (l *Ledger) Remove(ctx context.Context, customer string, asset types.Asset, amount float64, options ...TransactionOption) (*Transaction, error) {
-	if amount <= 0 {
-		return nil, fmt.Errorf("can't remove %v %v", asset, amount)
+func (l *Ledger) Cancel(ctx context.Context, holder string, asset types.Asset, account types.Account, transaction types.ID) (*Transaction, error) {
+	tx, err := l.Get(ctx, transaction)
+	if err != nil {
+		return nil, NewError(InternalError, "cant read transaxtion %v: %v", transaction, err)
 	}
 
-	return l.CreateTx(ctx, customer, asset, amount*-1, options...)
+	if tx.Holder != holder && tx.Asset != asset && tx.Account != account {
+		return nil, NewError(BadRequestError, "inconsistent holder/account/transaction combination (%v/%v/%v)", holder, account, transaction)
+	}
+
+	ops, cancel, err := l.CancelOperations(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	txID, err := l.client.Exec(ctx, ops...)
+
+	cancel.tx = txID
+
+	return cancel, err
 }
 
-func (l *Ledger) History(ctx context.Context, id string, f func(ctx context.Context, tx *Transaction) (bool, error)) error {
+func (l *Ledger) History(ctx context.Context, id types.ID, f func(ctx context.Context, tx *Transaction) (bool, error)) error {
 	return l.client.History(ctx, index.Key.ID(id), func(ctx context.Context, e *schema.Entry) (bool, error) {
 		if e.Value[0] == 0 {
 			e, err := l.client.GetAt(ctx, string(e.Key), e.Tx)
 			if err != nil {
-				return true, fmt.Errorf("failed to read the transaction (%v): %v", e.Tx, string(e.Value))
+				return true, NewError(InternalError, "failed to read the transaction (%v): %v", e.Tx, string(e.Value))
 			}
 
-			tx, err := ParseTransaction(e.Tx, string(e.Key), e.Value)
+			tx := &Transaction{}
+			err = tx.Parse(e)
 			if err != nil {
-				return true, fmt.Errorf("failed to parse the transaction (%v): %v", string(e.Value), err)
+				return true, NewError(InternalError, "failed to parse the transaction (%v): %v", string(e.Value), err)
 			}
 
 			return f(ctx, tx)
 		} else {
-			tx, err := ParseTransaction(e.Tx, string(e.Key), e.Value)
+			tx := &Transaction{}
+			err := tx.Parse(e)
 			if err != nil {
-				return true, fmt.Errorf("failed to parse the transaction (%v): %v", string(e.Value), err)
+				return true, NewError(InternalError, "failed to parse the transaction (%v): %v", string(e.Value), err)
 			}
 
 			return f(ctx, tx)
@@ -435,26 +469,51 @@ func (l *Ledger) History(ctx context.Context, id string, f func(ctx context.Cont
 
 func (l *Ledger) ForEach(ctx context.Context, prefix string, desc bool, f func(context.Context, *Transaction) (bool, error)) error {
 	return l.client.ScanAll(ctx, prefix, false, func(ctx context.Context, i int, e *schema.Entry) (bool, error) {
-		tx, err := ParseTransaction(e.Tx, string(e.Key), e.Value)
+		tx := &Transaction{}
+		err := tx.Parse(e)
 		if err != nil {
-			return true, fmt.Errorf("failed to parse the transaction (%v): %v", err, string(e.Value))
+			return true, NewError(InternalError, "failed to parse the transaction (%v): %v", err, string(e.Value))
 		}
 
 		return f(ctx, tx)
 	})
 }
 
-func (l *Ledger) NewID() (string, error) {
-	bytes := make([]byte, IDLength)
-
-	err := binary.Read(rand.Reader, binary.BigEndian, &bytes)
-	if err != nil {
-		return "", fmt.Errorf("error generate random id: %v", err)
-	}
-
-	return hex.EncodeToString(bytes), nil
+func (l *Ledger) NewID() (types.ID, error) {
+	return types.NewRandomID()
 }
 
-func (l *Ledger) ParseAsset(text string) (types.Asset, error) {
-	return l.assets.Parse(text)
+func (l *Ledger) NewAccount(ctx context.Context, holder string, asset types.Asset) (types.Account, error) {
+	cnt := uint8(0)
+
+	for {
+		hash := crc64.New(crc64.MakeTable(crc64.ECMA))
+		hash.Write([]byte(holder))
+		hash.Write([]byte(asset))
+		crc := hash.Sum([]byte{cnt})[1:]
+
+		account := hex.EncodeToString(crc)
+
+		chk := types.Account(account + "00").Checksum()
+
+		id := types.Account(fmt.Sprintf("%v%02d", account, chk))
+
+		info, err := l.AccountInfo(ctx, id)
+		if err != nil {
+			return types.AllAccounts, err
+		}
+
+		if info == nil {
+			return id, nil
+		}
+
+		cnt++
+		if cnt > 10 {
+			return "", NewError(InternalError, "cant generate a new id")
+		}
+	}
+}
+
+func (l *Ledger) Health(ctx context.Context) (*schema.DatabaseHealthResponse, error) {
+	return l.client.Health(ctx)
 }

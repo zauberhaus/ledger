@@ -1,26 +1,26 @@
 package index
 
-import "github.com/ec-systems/core.ledger.tool/pkg/types"
+import "github.com/ec-systems/core.ledger.service/pkg/types"
 
-var Customer = CustomerIndex{
+var Holder = HolderIndex{
 	index{
 		prefix: "CU",
 		max:    3,
 	},
 }
 
-type CustomerIndex struct {
+type HolderIndex struct {
 	index
 }
 
-func (c *CustomerIndex) Key(customer string, asset types.Asset, account types.Account) []byte {
-	return []byte(c.scan(customer, asset.String(), account.String()))
+func (c *HolderIndex) Key(holder string, asset types.Asset, account types.Account) []byte {
+	return []byte(c.scan(holder, asset.String(), account.String()))
 }
 
-func (c *CustomerIndex) Accounts(customer string, asset types.Asset) string {
-	return c.scan(customer, asset.String())
+func (c *HolderIndex) Accounts(holder string, asset types.Asset) string {
+	return c.scan(holder, asset.String())
 }
 
-func (c *CustomerIndex) All() string {
+func (c *HolderIndex) All() string {
 	return c.scan()
 }

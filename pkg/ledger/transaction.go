@@ -1,102 +1,101 @@
 package ledger
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/ec-systems/core.ledger.tool/pkg/types"
+	"github.com/codenotary/immudb/pkg/api/schema"
+	"github.com/ec-systems/core.ledger.service/pkg/types"
+	"github.com/shopspring/decimal"
 )
 
 const (
-	Version = uint16(1)
-
-	TimeFormat = "02 Jan 06 15:04:00 -0700"
+	TimeFormat = "02 Jan 2006 15:04:05 Z07:00" // "02 Jan 06 15:04:01 -0700"
 )
 
 type Transaction struct {
-	tx       uint64 `json:""`
-	key      string `json:""`
-	ID       string
-	Account  types.Account
-	Customer string
-	Order    string
-	Item     string
+	tx      uint64
+	key     string
+	ID      types.ID      `swaggertype:"primitive,string"`
+	Account types.Account `swaggertype:"primitive,string"`
+	Holder  string
+	Order   string `json:"Order,omitempty"`
+	Item    string `json:"Item,omitempty"`
 
 	Asset  types.Asset
-	Amount float64
+	Amount decimal.Decimal
 
 	Status    types.Status
-	Date      time.Time
+	Modified  time.Time
 	Created   time.Time
-	Reference interface{}
-	Version   uint16
+	Reference types.Reference `json:"Ref,omitempty" swaggertype:"primitive,string"`
+	User      string
 }
 
-func ParseTransaction(id uint64, key string, data []byte) (*Transaction, error) {
-	tx := &Transaction{}
+func (tx *Transaction) Copy() *Transaction {
+	return &Transaction{
+		tx:  tx.tx,
+		key: tx.key,
 
-	err := json.Unmarshal(data, tx)
-	if err != nil {
-		return nil, fmt.Errorf("parse transaction error: %v", err)
+		ID:      tx.ID,
+		Account: tx.Account,
+		Holder:  tx.Holder,
+		Order:   tx.Order,
+		Item:    tx.Item,
+
+		Asset:  tx.Asset,
+		Amount: tx.Amount,
+
+		Status:    tx.Status,
+		Modified:  tx.Modified,
+		Created:   tx.Created,
+		Reference: tx.Reference,
+		User:      tx.User,
 	}
-
-	tx.tx = id
-	tx.key = key
-
-	return tx, nil
 }
 
-func (t *Transaction) Bytes() []byte {
-	data, err := json.Marshal(t)
-	if err != nil {
-		return []byte(err.Error())
-	}
+func (tx *Transaction) Parse(e *schema.Entry) error {
+	return Unmarshal(e, tx)
+}
 
-	return data
+func (t *Transaction) Bytes(format types.Format) ([]byte, error) {
+	return Marshal(t, format, Version)
+}
+
+func (t *Transaction) SetTX(tx uint64) {
+	t.tx = tx
 }
 
 func (t *Transaction) TX() uint64 {
 	return t.tx
 }
 
+func (t *Transaction) SetKey(key string) {
+	t.key = key
+}
+
 func (t *Transaction) Key() string {
 	return t.key
 }
 
-func (t *Transaction) Change() []string {
-	return []string{fmt.Sprintf("%v", t.TX()), t.Date.Format(TimeFormat), t.Status.String()}
-}
-
-func (t *Transaction) Row(keys bool) []string {
-	row := []string{}
-
-	row = append(row, fmt.Sprintf("%v", t.tx))
-	row = append(row, t.ID)
-	row = append(row, t.Created.Format(TimeFormat))
-	row = append(row, t.Date.Format(TimeFormat))
-	row = append(row, t.Customer)
-	row = append(row, string(t.Account))
-	row = append(row, t.Order)
-	row = append(row, t.Item)
-	row = append(row, string(t.Asset))
-	row = append(row, string(t.Status.String()))
-	row = append(row, fmt.Sprintf("%.8f", t.Amount))
-
-	if t.Reference != nil {
-		data, err := json.Marshal(t.Reference)
-		if err != nil {
-			row = append(row, fmt.Sprintf("%v", err))
-		} else {
-			row = append(row, string(data))
-		}
-	} else {
-		row = append(row, "")
+func (t *Transaction) OrderRow(items bool) []string {
+	row := []string{
+		fmt.Sprintf("%v", t.TX()),
+		t.Created.Format(TimeFormat),
+		t.Order,
 	}
 
-	if keys {
-		row = append(row, t.key)
+	if items {
+		row = append(row, t.Item)
+		row = append(row, t.Asset.String())
+		row = append(row, t.Status.String())
+		row = append(row, t.Amount.String())
 	}
 
 	return row
+}
+
+func (t *Transaction) Change() []string {
+	return []string{
+		fmt.Sprintf("%v", t.TX()), t.Modified.Format(TimeFormat), t.Status.String()}
 }

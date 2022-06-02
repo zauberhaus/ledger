@@ -31,7 +31,15 @@
     "StreamChunkSize": 65536,
     "HeartBeatFrequency": 60000000000
   },
+  "Service": {
+    "Device": "",
+    "Port": 8888,
+    "Production": false,
+    "Metrics": 9094,
+    "MTls": null
+  },
   "Assets": null,
   "Statuses": null,
-  "BatchSize": 25
+  "BatchSize": 25,
+  "Format": "0"
 }

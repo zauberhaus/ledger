@@ -1,1 +1,1 @@
-# ledger
+# EC core ledger
