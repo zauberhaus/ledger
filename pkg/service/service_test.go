@@ -80,7 +80,7 @@ var (
 		},
 	}
 
-	url = "http://localhost:8888"
+	url = ""
 
 	assets = types.Assets{}
 )
