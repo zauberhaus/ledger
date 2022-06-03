@@ -6,8 +6,6 @@ definitions:
         type: string
       Order:
         type: string
-      Ref:
-        type: string
       account:
         type: string
       amount:
@@ -22,9 +20,18 @@ definitions:
         type: string
       modified:
         type: string
+      reference:
+        type: string
       status:
         type: integer
       user:
+        type: string
+    type: object
+  service.Account:
+    properties:
+      account:
+        type: string
+      asset:
         type: string
     type: object
   service.Asset:
@@ -32,6 +39,15 @@ definitions:
       name:
         type: string
       symbol:
+        type: string
+    type: object
+  service.Holder:
+    properties:
+      accounts:
+        items:
+          $ref: '#/definitions/service.Account'
+        type: array
+      name:
         type: string
     type: object
   service.Status:
@@ -48,11 +64,54 @@ info:
     url: http://easycrypto.ai
   description: This is the web service of the core asset ledger.
   title: Core Ledger
-  version: 0.0.1
 paths:
-  /{holder}/{asset}:
+  /accounts/:
+    get:
+      description: List all holders in the ledger
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/service.Holder'
+            type: array
+        "404":
+          description: ""
+        "500":
+          description: ""
+      summary: List Holders
+      tags:
+      - Accounts
+  /accounts/{holder}:
     get:
       description: List accounts and balances of a holder
+      parameters:
+      - description: Account Holder
+        in: path
+        name: holder
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ledger.Transaction'
+            type: array
+        "404":
+          description: ""
+        "500":
+          description: ""
+      summary: List User Accounts
+      tags:
+      - Accounts
+  /accounts/{holder}/{asset}:
+    get:
+      description: List accounts and balances of a asset of a holder
       parameters:
       - description: Account Holder
         in: path
@@ -76,10 +135,10 @@ paths:
           description: ""
         "500":
           description: ""
-      summary: List Accounts
+      summary: List Asset Accounts
       tags:
       - Accounts
-  /{holder}/{asset}/{account}:
+  /accounts/{holder}/{asset}/{account}:
     get:
       description: List all the transactions of an account
       parameters:
@@ -112,9 +171,48 @@ paths:
       summary: List Transactions
       tags:
       - Accounts
-  /{holder}/{asset}/{account}/{id}:
+  /accounts/{holder}/{asset}/{account}/{id}:
     delete:
-      description: Show the transaction history
+      description: Remove or add assets from ledger by reverting a transaction
+      parameters:
+      - description: Account Holder
+        in: path
+        name: holder
+        required: true
+        type: string
+      - description: Asset Symbol
+        in: path
+        name: asset
+        required: true
+        type: string
+      - description: Account
+        in: path
+        name: account
+        required: true
+        type: string
+      - description: Transaction ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ledger.Transaction'
+        "400":
+          description: ""
+        "404":
+          description: ""
+        "500":
+          description: ""
+      summary: Revert a Transaction
+      tags:
+      - Accounts
+    get:
+      description: Show the history of a transaction
       parameters:
       - description: Account Holder
         in: path
@@ -153,7 +251,7 @@ paths:
       tags:
       - Accounts
     patch:
-      description: Set the status of a transaction
+      description: Change the status of a transaction
       parameters:
       - description: Account Holder
         in: path
@@ -186,41 +284,7 @@ paths:
           description: ""
         "500":
           description: ""
-      summary: Change a Transaction
-      tags:
-      - Accounts
-  /accounts/{holder}/{asset}/{account}/{id}:
-    delete:
-      description: Remove or remove assets from ledger by reverting a transaction
-      parameters:
-      - description: Account Holder
-        in: path
-        name: holder
-        required: true
-        type: string
-      - description: Asset Symbol
-        in: path
-        name: asset
-        required: true
-        type: string
-      - description: Reference
-        in: query
-        name: ref
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/ledger.Transaction'
-        "400":
-          description: ""
-        "404":
-          description: ""
-        "500":
-          description: ""
-      summary: Cancel a transaction
+      summary: Change the Transaction Status
       tags:
       - Accounts
   /accounts/{holder}/{asset}/{amount}:
@@ -318,19 +382,15 @@ paths:
       - Accounts
   /health:
     get:
-      description: List of the statuses supported by the ledger
+      description: Show health status
       produces:
-      - application/json
+      - plain/text
       responses:
         "200":
-          description: OK
-          schema:
-            items:
-              items:
-                $ref: '#/definitions/service.Status'
-              type: array
-            type: array
-      summary: Database Health
+          description: ""
+        "500":
+          description: ""
+      summary: Health
       tags:
       - Health
   /info/assets:

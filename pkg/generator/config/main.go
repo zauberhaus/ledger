@@ -12,6 +12,7 @@ import (
 	"github.com/ec-systems/core.ledger.service/cmd"
 	"github.com/ec-systems/core.ledger.service/pkg/config"
 	"github.com/ec-systems/core.ledger.service/pkg/logger"
+	"github.com/ec-systems/core.ledger.service/pkg/types"
 )
 
 var (
@@ -62,6 +63,9 @@ func main() {
 	}
 
 	cfg := config.Configuration()
+	cfg.Assets = types.DefaultAssetMap
+	cfg.Statuses = types.DefaultStatusMap
+	cfg.Format = types.Protobuf
 
 	exampleConfPath := filepath.Join(path, "examples", exampleConf)
 

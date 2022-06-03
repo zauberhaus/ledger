@@ -48,12 +48,18 @@ func (id ID) IsEmpty() bool {
 }
 
 func (id ID) MarshalText() (text []byte, err error) {
-	hex := hex.EncodeToString(id.UUID[:])
-	return []byte(hex), nil
+	//hex := hex.EncodeToString(id.UUID[:])
+	//return []byte(hex), nil
+	return []byte(id.String()), nil
 }
 
 func (id *ID) UnmarshalText(text []byte) error {
-	if data, err := hex.DecodeString(string(text)); err == nil || len(data) != 16 {
+	if len(text) == 16 {
+		data, err := hex.DecodeString(string(text))
+		if err != nil {
+			return err
+		}
+
 		*id = NewID(data)
 	} else {
 		tmp, err := uuid.Parse(string(text))

@@ -56,10 +56,20 @@ func Mount(path string, handler http.Handler) ServiceOption {
 	})
 }
 
-func Get(routes map[string]http.HandlerFunc) ServiceOption {
+func Method(method string, routes map[string]http.HandlerFunc) ServiceOption {
 	return ServiceOptionFunc(func(c *MTlsService) {
 		for k, v := range routes {
-			c.router.Get(k, v)
+			c.router.Method(method, k, v)
 		}
+	})
+}
+
+func Redirect(path string, location string) ServiceOption {
+	return ServiceOptionFunc(func(c *MTlsService) {
+		fn := func(writer http.ResponseWriter, req *http.Request) {
+			http.Redirect(writer, req, location, http.StatusMovedPermanently)
+		}
+
+		c.router.Handle(path, http.HandlerFunc(fn))
 	})
 }

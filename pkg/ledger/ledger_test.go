@@ -49,10 +49,10 @@ var (
 
 	cfg = config.Config{
 		LogLevel:  logger.InfoLevel,
-		Assets:    types.DefaultAssetNames,
+		Assets:    types.DefaultAssetMap,
 		Statuses:  types.DefaultStatusMap,
 		BatchSize: 25,
-		Format:    types.JSON,
+		Format:    types.Protobuf,
 		ClientOptions: &immudb.Options{
 			Dir:                "./test_data",
 			Address:            CLIENT_OPTIONS_ADDRESS,
@@ -79,6 +79,11 @@ var (
 	}
 
 	assets = types.Assets{}
+
+	formats = []types.Format{
+		types.JSON,
+		types.Protobuf,
+	}
 )
 
 func Test_Add(t *testing.T) {
@@ -90,56 +95,61 @@ func Test_Add(t *testing.T) {
 
 	defer client.Close(ctx)
 
-	l := ledger.New(client,
-		ledger.SupportedAssets(cfg.Assets),
-		ledger.MultiAccounts(true),
-		ledger.Format(types.Protobuf),
-	)
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
 
-	asset := randomAsset(assets)
-	holder = randomName()
-	order := "order1"
-	item := "test2"
-	amounts := randFloats(2, 100)
-	reference := "test"
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.MultiAccounts(true),
+				ledger.Format(f),
+			)
 
-	length := len(amounts[0].String())
-	_ = length
+			asset := randomAsset(assets)
+			holder = randomName()
+			order := "order1"
+			item := "test2"
+			amounts := randFloats(2, 100)
+			reference := "test"
 
-	tx, err := l.Add(ctx, holder, asset, amounts[0],
-		ledger.OrderID(order),
-		ledger.OrderItemID(item),
-		ledger.Reference(reference),
-	)
-	if !assert.NoError(t, err) {
-		return
+			length := len(amounts[0].String())
+			_ = length
+
+			tx, err := l.Add(ctx, holder, asset, amounts[0],
+				ledger.OrderID(order),
+				ledger.OrderItemID(item),
+				ledger.Reference(reference),
+			)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx) {
+				return
+			}
+
+			assert.Greater(t, tx.TX(), uint64(0))
+
+			assert.Equal(t, holder, tx.Holder)
+			assert.Equal(t, order, tx.Order)
+			assert.Equal(t, item, tx.Item)
+			assert.Equal(t, asset, tx.Asset)
+			assert.Equal(t, amounts[0], tx.Amount)
+			assert.Equal(t, index.Key.ID(tx.ID), tx.Key())
+			assert.Equal(t, types.Created, tx.Status)
+			assert.Equal(t, reference, tx.Reference)
+
+			tx2, err := l.Get(ctx, tx.ID)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx) {
+				return
+			}
+
+			check(t, tx, tx2)
+		})
 	}
-
-	if !assert.NotNil(t, tx) {
-		return
-	}
-
-	assert.Greater(t, tx.TX(), uint64(0))
-
-	assert.Equal(t, holder, tx.Holder)
-	assert.Equal(t, order, tx.Order)
-	assert.Equal(t, item, tx.Item)
-	assert.Equal(t, asset, tx.Asset)
-	assert.Equal(t, amounts[0], tx.Amount)
-	assert.Equal(t, reference, tx.Reference.Content())
-	assert.Equal(t, index.Key.ID(tx.ID), tx.Key())
-	assert.Equal(t, types.Created, tx.Status)
-
-	tx2, err := l.Get(ctx, tx.ID)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, tx) {
-		return
-	}
-
-	check(t, tx, tx2)
 }
 
 func Test_Add_Account(t *testing.T) {
@@ -151,55 +161,61 @@ func Test_Add_Account(t *testing.T) {
 
 	defer client.Close(ctx)
 
-	l := ledger.New(client,
-		ledger.SupportedAssets(cfg.Assets),
-		ledger.MultiAccounts(true),
-	)
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
 
-	asset := randomAsset(assets)
-	holder = randomName()
-	account := newAccount(holder, asset)
-	order := "order1"
-	item := "test2"
-	amounts := randFloats(2)
-	reference := "test"
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.MultiAccounts(true),
+				ledger.Format(f),
+			)
 
-	tx, err := l.Add(ctx, holder, asset, amounts[0],
-		ledger.Account(account),
-		ledger.OrderID(order),
-		ledger.OrderItemID(item),
-		ledger.Reference(reference),
-	)
-	if !assert.NoError(t, err) {
-		return
+			asset := randomAsset(assets)
+			holder = randomName()
+			account := newAccount(holder, asset)
+			order := "order1"
+			item := "test2"
+			amounts := randFloats(2)
+			reference := "test"
+
+			tx, err := l.Add(ctx, holder, asset, amounts[0],
+				ledger.Account(account),
+				ledger.OrderID(order),
+				ledger.OrderItemID(item),
+				ledger.Reference(reference),
+			)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx) {
+				return
+			}
+
+			assert.Greater(t, tx.TX(), uint64(0))
+
+			assert.Equal(t, holder, tx.Holder)
+			assert.Equal(t, account, tx.Account)
+			assert.Equal(t, order, tx.Order)
+			assert.Equal(t, item, tx.Item)
+			assert.Equal(t, asset, tx.Asset)
+			assert.Equal(t, amounts[0], tx.Amount)
+			assert.Equal(t, index.Key.ID(tx.ID), tx.Key())
+			assert.Equal(t, types.Created, tx.Status)
+			assert.Equal(t, reference, tx.Reference)
+
+			tx2, err := l.Get(ctx, tx.ID)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx) {
+				return
+			}
+
+			check(t, tx, tx2)
+		})
 	}
-
-	if !assert.NotNil(t, tx) {
-		return
-	}
-
-	assert.Greater(t, tx.TX(), uint64(0))
-
-	assert.Equal(t, holder, tx.Holder)
-	assert.Equal(t, account, tx.Account)
-	assert.Equal(t, order, tx.Order)
-	assert.Equal(t, item, tx.Item)
-	assert.Equal(t, asset, tx.Asset)
-	assert.Equal(t, amounts[0], tx.Amount)
-	assert.Equal(t, reference, tx.Reference.Content())
-	assert.Equal(t, index.Key.ID(tx.ID), tx.Key())
-	assert.Equal(t, types.Created, tx.Status)
-
-	tx2, err := l.Get(ctx, tx.ID)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, tx) {
-		return
-	}
-
-	check(t, tx, tx2)
 }
 
 func Test_Remove(t *testing.T) {
@@ -211,57 +227,66 @@ func Test_Remove(t *testing.T) {
 
 	defer client.Close(ctx)
 
-	l := ledger.New(client,
-		ledger.SupportedAssets(cfg.Assets),
-		ledger.Overdraw(true),
-	)
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
 
-	asset := randomAsset(assets)
-	holder = randomName()
-	account := newAccount(holder, asset)
-	order := "order1"
-	item := "test2"
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.Overdraw(true),
+				ledger.Format(f),
+			)
 
-	amount := randFloats(1)[0]
-	assert.NoError(t, err)
+			asset := randomAsset(assets)
+			holder = randomName()
+			account := newAccount(holder, asset)
+			order := "order1"
+			item := "test2"
 
-	reference := float64(99)
+			amount := randFloats(1)[0]
+			assert.NoError(t, err)
 
-	tx, err := l.Remove(ctx, holder, asset, amount,
-		ledger.OrderID(order),
-		ledger.OrderItemID(item),
-		ledger.Reference(reference),
-	)
-	if !assert.NoError(t, err) {
-		return
+			reference, err := types.NewReference(float64(99))
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			tx, err := l.Remove(ctx, holder, asset, amount,
+				ledger.OrderID(order),
+				ledger.OrderItemID(item),
+				ledger.Reference(reference.String()),
+			)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx) {
+				return
+			}
+
+			assert.Greater(t, tx.TX(), uint64(0))
+
+			assert.Equal(t, holder, tx.Holder)
+			assert.Equal(t, account, tx.Account)
+			assert.Equal(t, order, tx.Order)
+			assert.Equal(t, item, tx.Item)
+			assert.Equal(t, asset, tx.Asset)
+			assert.Equal(t, amount.Neg().String(), tx.Amount.String())
+			assert.Equal(t, reference, types.Reference(tx.Reference))
+			assert.Equal(t, index.Key.ID(tx.ID), tx.Key())
+			assert.Equal(t, types.Created, tx.Status)
+
+			tx2, err := l.Get(ctx, tx.ID)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx) {
+				return
+			}
+
+			check(t, tx, tx2)
+		})
 	}
-
-	if !assert.NotNil(t, tx) {
-		return
-	}
-
-	assert.Greater(t, tx.TX(), uint64(0))
-
-	assert.Equal(t, holder, tx.Holder)
-	assert.Equal(t, account, tx.Account)
-	assert.Equal(t, order, tx.Order)
-	assert.Equal(t, item, tx.Item)
-	assert.Equal(t, asset, tx.Asset)
-	assert.Equal(t, amount.Neg().String(), tx.Amount.String())
-	assert.Equal(t, reference, tx.Reference.Content())
-	assert.Equal(t, index.Key.ID(tx.ID), tx.Key())
-	assert.Equal(t, types.Created, tx.Status)
-
-	tx2, err := l.Get(ctx, tx.ID)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, tx) {
-		return
-	}
-
-	check(t, tx, tx2)
 }
 
 func Test_Cancel(t *testing.T) {
@@ -273,82 +298,90 @@ func Test_Cancel(t *testing.T) {
 
 	defer client.Close(ctx)
 
-	l := ledger.New(client,
-		ledger.SupportedAssets(cfg.Assets),
-		ledger.Overdraw(false),
-	)
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.Overdraw(false),
+				ledger.Format(f),
+			)
 
-	asset := randomAsset(assets)
-	holder = randomName()
-	order := "order1"
-	item := "test2"
+			asset := randomAsset(assets)
+			holder = randomName()
+			order := "order1"
+			item := "test2"
 
-	amount := randFloats(1)[0]
-	assert.NoError(t, err)
+			amount := randFloats(1)[0]
+			assert.NoError(t, err)
 
-	reference := float64(99)
+			reference, err := types.NewReference(float64(99))
+			if !assert.NoError(t, err) {
+				return
+			}
 
-	assert.NoError(t, err)
+			assert.NoError(t, err)
 
-	tx, err := l.Add(ctx, holder, asset, amount,
-		ledger.OrderID(order),
-		ledger.OrderItemID(item),
-		ledger.Reference(reference),
-	)
-	if !assert.NoError(t, err) {
-		return
+			tx, err := l.Add(ctx, holder, asset, amount,
+				ledger.OrderID(order),
+				ledger.OrderItemID(item),
+				ledger.Reference(reference.String()),
+			)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx) {
+				return
+			}
+
+			assert.NotZero(t, tx.TX())
+			assert.Equal(t, holder, tx.Holder)
+			assert.Equal(t, order, tx.Order)
+			assert.Equal(t, item, tx.Item)
+			assert.Equal(t, asset, tx.Asset)
+			assert.Equal(t, amount.String(), tx.Amount.String())
+			assert.Equal(t, reference, types.Reference(tx.Reference))
+			assert.Equal(t, index.Key.ID(tx.ID), tx.Key())
+			assert.Equal(t, types.Created, tx.Status)
+
+			tx2, err := l.Cancel(ctx, holder, asset, tx.Account, tx.ID)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx) {
+				return
+			}
+
+			ref, err := types.NewReference(struct {
+				ID     string
+				Status types.Status
+			}{
+				tx.ID.String(),
+				types.Canceled,
+			})
+
+			assert.NoError(t, err)
+
+			assert.NotZero(t, tx2.TX())
+			assert.Equal(t, holder, tx2.Holder)
+			assert.Equal(t, tx.Account, tx2.Account)
+			assert.Equal(t, order, tx2.Order)
+			assert.Equal(t, item, tx2.Item)
+			assert.Equal(t, asset, tx2.Asset)
+			assert.Equal(t, amount.Neg().String(), tx2.Amount.String())
+			assert.Equal(t, ref.String(), tx2.Reference)
+			assert.NotEqual(t, index.Key.ID(tx.ID), tx2.Key())
+			assert.Equal(t, types.Finished, tx2.Status)
+
+			tx1, err := l.Get(ctx, tx.ID)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			check(t, tx, tx1)
+		})
 	}
-
-	if !assert.NotNil(t, tx) {
-		return
-	}
-
-	assert.NotZero(t, tx.TX())
-	assert.Equal(t, holder, tx.Holder)
-	assert.Equal(t, order, tx.Order)
-	assert.Equal(t, item, tx.Item)
-	assert.Equal(t, asset, tx.Asset)
-	assert.Equal(t, amount.String(), tx.Amount.String())
-	assert.Equal(t, reference, tx.Reference.Content())
-	assert.Equal(t, index.Key.ID(tx.ID), tx.Key())
-	assert.Equal(t, types.Created, tx.Status)
-
-	tx2, err := l.Cancel(ctx, holder, asset, tx.Account, tx.ID)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, tx) {
-		return
-	}
-
-	ref, err := types.NewReference(struct {
-		ID     string
-		Status types.Status
-	}{
-		tx.ID.String(),
-		types.Canceled,
-	})
-
-	assert.NoError(t, err)
-
-	assert.NotZero(t, tx2.TX())
-	assert.Equal(t, holder, tx2.Holder)
-	assert.Equal(t, tx.Account, tx2.Account)
-	assert.Equal(t, order, tx2.Order)
-	assert.Equal(t, item, tx2.Item)
-	assert.Equal(t, asset, tx2.Asset)
-	assert.Equal(t, amount.Neg().String(), tx2.Amount.String())
-	assert.Equal(t, ref, tx2.Reference)
-	assert.NotEqual(t, index.Key.ID(tx.ID), tx2.Key())
-	assert.Equal(t, types.Finished, tx2.Status)
-
-	tx1, err := l.Get(ctx, tx.ID)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	check(t, tx, tx1)
 }
 
 func Test_Status(t *testing.T) {
@@ -360,68 +393,78 @@ func Test_Status(t *testing.T) {
 
 	defer client.Close(ctx)
 
-	l := ledger.New(client,
-		ledger.SupportedAssets(cfg.Assets),
-		ledger.MultiAccounts(false),
-	)
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
 
-	amounts := randFloats(1)
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.MultiAccounts(false),
+				ledger.Format(f),
+			)
 
-	asset := types.BNB
-	holder = randomName()
-	order := "my_order"
-	item := "1"
-	reference := struct {
-		ID   int
-		Name string
-	}{12, "test"}
+			amounts := randFloats(1)
 
-	tx1, err := l.Add(ctx, holder, asset, amounts[0],
-		ledger.OrderID(order),
-		ledger.OrderItemID(item),
-		ledger.Reference(reference),
-	)
-	if !assert.NoError(t, err) {
-		return
+			asset := types.BNB
+			holder = randomName()
+			order := "my_order"
+			item := "1"
+			reference, err := types.NewReference(struct {
+				ID   int
+				Name string
+			}{12, "test"})
+
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			tx1, err := l.Add(ctx, holder, asset, amounts[0],
+				ledger.OrderID(order),
+				ledger.OrderItemID(item),
+				ledger.Reference(reference.String()),
+			)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx1) {
+				return
+			}
+
+			assert.Greater(t, tx1.TX(), uint64(0))
+
+			time.Sleep(2 * time.Second)
+
+			tx2, err := l.Status(ctx, tx1.ID, types.Finished)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx2) {
+				return
+			}
+
+			history := []*ledger.Transaction{}
+			err = l.History(ctx, tx1.ID, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
+				history = append(history, tx)
+				return true, nil
+			})
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			txs := []*ledger.Transaction{}
+			err = l.Transactions(ctx, tx2.Holder, types.AllAssets, types.AllAccounts, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
+				txs = append(txs, tx)
+				return true, nil
+			})
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			assert.Len(t, txs, 1)
+			assert.Equal(t, types.Finished, txs[0].Status)
+		})
 	}
-
-	if !assert.NotNil(t, tx1) {
-		return
-	}
-
-	assert.Greater(t, tx1.TX(), uint64(0))
-
-	time.Sleep(2 * time.Second)
-
-	tx2, err := l.Status(ctx, tx1.ID, types.Finished)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, tx2) {
-		return
-	}
-
-	history := []*ledger.Transaction{}
-	err = l.History(ctx, tx1.ID, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
-		history = append(history, tx)
-		return true, nil
-	})
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	txs := []*ledger.Transaction{}
-	err = l.Transactions(ctx, tx2.Holder, types.AllAssets, types.AllAccounts, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
-		txs = append(txs, tx)
-		return true, nil
-	})
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	assert.Len(t, txs, 1)
-	assert.Equal(t, types.Finished, txs[0].Status)
 
 }
 
@@ -434,70 +477,81 @@ func Test_History(t *testing.T) {
 
 	defer client.Close(ctx)
 
-	l := ledger.New(client,
-		ledger.SupportedAssets(cfg.Assets),
-		ledger.MultiAccounts(false),
-	)
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
 
-	amounts := randFloats(1)
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.MultiAccounts(false),
+				ledger.Format(f),
+			)
 
-	asset := types.BNB
-	holder = randomName()
-	order := "my_order"
-	item := "1"
-	reference := struct {
-		ID   int
-		Name string
-	}{12, "test"}
+			amounts := randFloats(1)
 
-	tx1, err := l.Add(ctx, holder, asset, amounts[0],
-		ledger.OrderID(order),
-		ledger.OrderItemID(item),
-		ledger.Reference(reference),
-	)
-	if !assert.NoError(t, err) {
-		return
-	}
+			asset := types.BNB
+			holder = randomName()
+			order := "my_order"
+			item := "1"
 
-	if !assert.NotNil(t, tx1) {
-		return
-	}
+			reference, err := types.NewReference(struct {
+				ID   int
+				Name string
+			}{12, "test"})
 
-	assert.Greater(t, tx1.TX(), uint64(0))
+			if !assert.NoError(t, err) {
+				return
+			}
 
-	for i := 0; i < 10; i++ {
-		tx2, err := l.Status(ctx, tx1.ID, types.Finished)
-		if !assert.NoError(t, err) {
-			return
-		}
+			tx1, err := l.Add(ctx, holder, asset, amounts[0],
+				ledger.OrderID(order),
+				ledger.OrderItemID(item),
+				ledger.Reference(reference.String()),
+			)
+			if !assert.NoError(t, err) {
+				return
+			}
 
-		if !assert.NotNil(t, tx2) {
-			return
-		}
+			if !assert.NotNil(t, tx1) {
+				return
+			}
 
-		tx3, err := l.Status(ctx, tx1.ID, types.Created)
-		if !assert.NoError(t, err) {
-			return
-		}
+			assert.Greater(t, tx1.TX(), uint64(0))
 
-		if !assert.NotNil(t, tx3) {
-			return
-		}
-	}
+			for i := 0; i < 10; i++ {
+				tx2, err := l.Status(ctx, tx1.ID, types.Finished)
+				if !assert.NoError(t, err) {
+					return
+				}
 
-	history := []*ledger.Transaction{}
-	err = l.History(ctx, tx1.ID, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
-		history = append(history, tx)
-		return true, nil
-	})
-	if !assert.NoError(t, err) {
-		return
-	}
+				if !assert.NotNil(t, tx2) {
+					return
+				}
 
-	if assert.Len(t, history, 21) {
-		for _, h := range history {
-			assert.Equal(t, tx1.ID, h.ID)
-		}
+				tx3, err := l.Status(ctx, tx1.ID, types.Created)
+				if !assert.NoError(t, err) {
+					return
+				}
+
+				if !assert.NotNil(t, tx3) {
+					return
+				}
+			}
+
+			history := []*ledger.Transaction{}
+			err = l.History(ctx, tx1.ID, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
+				history = append(history, tx)
+				return true, nil
+			})
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if assert.Len(t, history, 21) {
+				for _, h := range history {
+					assert.Equal(t, tx1.ID, h.ID)
+				}
+			}
+		})
 	}
 
 }
@@ -511,49 +565,55 @@ func Test_Remove_MultipleAccounts(t *testing.T) {
 
 	defer client.Close(ctx)
 
-	l := ledger.New(client,
-		ledger.SupportedAssets(cfg.Assets),
-		ledger.Overdraw(false),
-		ledger.MultiAccounts(true),
-	)
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
 
-	amount := randFloats(1)[0]
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.Overdraw(false),
+				ledger.MultiAccounts(true),
+				ledger.Format(f),
+			)
 
-	asset := randomAsset(assets)
+			amount := randFloats(1)[0]
 
-	tx1, ok := add(ctx, t, l, randomName(), asset, amount)
+			asset := randomAsset(assets)
 
-	if !ok {
-		return
-	}
+			tx1, ok := add(ctx, t, l, randomName(), asset, amount)
 
-	account := newAccount("dummy", tx1.Asset)
+			if !ok {
+				return
+			}
 
-	_, ok = add(ctx, t, l, tx1.Holder, asset, amount, ledger.Account(account))
+			account := newAccount("dummy", tx1.Asset)
 
-	if !ok {
-		return
-	}
+			_, ok = add(ctx, t, l, tx1.Holder, asset, amount, ledger.Account(account))
 
-	_, err = l.Remove(ctx, tx1.Holder, tx1.Asset, amount)
+			if !ok {
+				return
+			}
 
-	if !assert.NoError(t, err) {
-		return
-	}
+			_, err = l.Remove(ctx, tx1.Holder, tx1.Asset, amount)
 
-	_, err = l.Remove(ctx, tx1.Holder, tx1.Asset, amount)
+			if !assert.NoError(t, err) {
+				return
+			}
 
-	if !assert.NoError(t, err) {
-		return
-	}
+			_, err = l.Remove(ctx, tx1.Holder, tx1.Asset, amount)
 
-	b, err := l.Balance(ctx, tx1.Holder, types.AllAssets, types.AllAccounts, types.Created)
+			if !assert.NoError(t, err) {
+				return
+			}
 
-	assert.NoError(t, err)
+			b, err := l.Balance(ctx, tx1.Holder, types.AllAssets, types.AllAccounts, types.Created)
 
-	if assert.Contains(t, b, tx1.Asset) {
-		assert.True(t, b[tx1.Asset].Sum.IsZero())
-		assert.Equal(t, uint(4), b[tx1.Asset].Count)
+			assert.NoError(t, err)
+
+			if assert.Contains(t, b, tx1.Asset) {
+				assert.True(t, b[tx1.Asset].Sum.IsZero())
+				assert.Equal(t, uint(4), b[tx1.Asset].Count)
+			}
+		})
 	}
 
 }
@@ -565,36 +625,42 @@ func Test_Overdraw(t *testing.T) {
 		return
 	}
 
-	amount := randFloats(1)[0]
-
-	copy := amount
-
 	defer client.Close(ctx)
-	l := ledger.New(client,
-		ledger.SupportedAssets(cfg.Assets),
-		ledger.Overdraw(false),
-	)
 
-	asset := randomAsset(assets)
-	tx1, ok := add(ctx, t, l, randomName(), asset, amount)
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
 
-	if !ok {
-		return
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.Overdraw(false),
+				ledger.Format(f),
+			)
+
+			amount := randFloats(1)[0]
+			copy := amount
+
+			asset := randomAsset(assets)
+			tx1, ok := add(ctx, t, l, randomName(), asset, amount)
+
+			if !ok {
+				return
+			}
+
+			assert.Equal(t, copy.String(), amount.String())
+
+			_, err = remove(ctx, t, l, tx1.Holder, tx1.Asset, amount)
+
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, copy.String(), amount.String())
+
+			_, err = l.Remove(ctx, tx1.Holder, tx1.Asset, amount)
+
+			assert.EqualError(t, err, fmt.Sprintf("balance too low to remove %v %v for holder %v", asset, amount, tx1.Holder))
+		})
 	}
-
-	assert.Equal(t, copy.String(), amount.String())
-
-	_, err = remove(ctx, t, l, tx1.Holder, tx1.Asset, amount)
-
-	if err != nil {
-		return
-	}
-
-	assert.Equal(t, copy.String(), amount.String())
-
-	_, err = l.Remove(ctx, tx1.Holder, tx1.Asset, amount)
-
-	assert.EqualError(t, err, fmt.Sprintf("balance too low to remove %v %v for holder %v", asset, amount, tx1.Holder))
 }
 
 func Test_Overdraw_MultipleAccounts(t *testing.T) {
@@ -606,39 +672,45 @@ func Test_Overdraw_MultipleAccounts(t *testing.T) {
 
 	defer client.Close(ctx)
 
-	l := ledger.New(client,
-		ledger.SupportedAssets(cfg.Assets),
-		ledger.Overdraw(false),
-		ledger.MultiAccounts(),
-	)
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
 
-	asset := randomAsset(assets)
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.Overdraw(false),
+				ledger.MultiAccounts(),
+				ledger.Format(f),
+			)
 
-	tx1, ok := add(ctx, t, l, randomName(), asset, one)
+			asset := randomAsset(assets)
 
-	if !ok {
-		return
+			tx1, ok := add(ctx, t, l, randomName(), asset, one)
+
+			if !ok {
+				return
+			}
+
+			account := newAccount(randomName(), tx1.Asset)
+
+			_, ok = add(ctx, t, l, tx1.Holder, asset, two, ledger.Account(account))
+
+			if !ok {
+				return
+			}
+
+			_, err = l.Remove(ctx, tx1.Holder, tx1.Asset, three)
+
+			assert.EqualError(t, err, fmt.Sprintf("no account found with enough balance to remove %v %v for holder %v", asset, three, tx1.Holder))
+
+			_, err = l.Remove(ctx, tx1.Holder, tx1.Asset, two)
+
+			assert.NoError(t, err)
+
+			_, err = l.Remove(ctx, tx1.Holder, tx1.Asset, one)
+
+			assert.NoError(t, err)
+		})
 	}
-
-	account := newAccount(randomName(), tx1.Asset)
-
-	_, ok = add(ctx, t, l, tx1.Holder, asset, two, ledger.Account(account))
-
-	if !ok {
-		return
-	}
-
-	_, err = l.Remove(ctx, tx1.Holder, tx1.Asset, three)
-
-	assert.EqualError(t, err, fmt.Sprintf("no account found with enough balance to remove %v %v for holder %v", asset, three, tx1.Holder))
-
-	_, err = l.Remove(ctx, tx1.Holder, tx1.Asset, two)
-
-	assert.NoError(t, err)
-
-	_, err = l.Remove(ctx, tx1.Holder, tx1.Asset, one)
-
-	assert.NoError(t, err)
 }
 
 func Test_Order(t *testing.T) {
@@ -650,87 +722,89 @@ func Test_Order(t *testing.T) {
 
 	defer client.Close(ctx)
 
-	l := ledger.New(client,
-		ledger.SupportedAssets(cfg.Assets),
-		ledger.SupportedStatuses(cfg.Statuses),
-	)
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
 
-	asset1 := randomAsset(assets)
-	asset2 := randomAsset(assets)
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.SupportedStatuses(cfg.Statuses),
+				ledger.Format(f),
+			)
 
-	amounts := randFloats(4)
+			asset1 := randomAsset(assets)
+			asset2 := randomAsset(assets)
 
-	tx1, ok := add(ctx, t, l, randomName(), asset1, amounts[0],
-		ledger.OrderID("order1"),
-		ledger.OrderItemID("001"),
-	)
+			amounts := randFloats(4)
 
-	if !ok {
-		return
+			tx1, ok := add(ctx, t, l, randomName(), asset1, amounts[0],
+				ledger.OrderID("order1"),
+				ledger.OrderItemID("001"),
+			)
+
+			if !ok {
+				return
+			}
+
+			_, ok = add(ctx, t, l, tx1.Holder, asset2, amounts[1],
+				ledger.OrderID("order1"),
+				ledger.OrderItemID("002"),
+			)
+
+			if !ok {
+				return
+			}
+
+			_, ok = add(ctx, t, l, tx1.Holder, asset2, amounts[2],
+				ledger.OrderID("order2"),
+				ledger.OrderItemID("001"),
+			)
+
+			if !ok {
+				return
+			}
+
+			_, ok = add(ctx, t, l, tx1.Holder, asset1, amounts[3],
+				ledger.OrderID("order2"),
+				ledger.OrderItemID("001"),
+			)
+
+			if !ok {
+				return
+			}
+
+			orders := []*ledger.Transaction{}
+			err = l.Orders(ctx, tx1.Holder, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
+				if assert.Equal(t, tx1.Holder, tx.Holder) {
+					orders = append(orders, tx)
+					return true, nil
+				} else {
+					return false, nil
+				}
+			})
+
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			assert.Len(t, orders, 2)
+
+			orders = []*ledger.Transaction{}
+			err = l.OrderItems(ctx, tx1.Holder, tx1.Order, "", func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
+				if assert.Equal(t, tx1.Holder, tx.Holder) && assert.Equal(t, tx1.Order, tx.Order) {
+					orders = append(orders, tx)
+					return true, nil
+				} else {
+					return false, nil
+				}
+			})
+
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			assert.Len(t, orders, 2)
+		})
 	}
-
-	tx2, ok := add(ctx, t, l, tx1.Holder, asset2, amounts[1],
-		ledger.OrderID("order1"),
-		ledger.OrderItemID("002"),
-	)
-
-	if !ok {
-		return
-	}
-
-	tx3, ok := add(ctx, t, l, tx1.Holder, asset2, amounts[2],
-		ledger.OrderID("order2"),
-		ledger.OrderItemID("001"),
-	)
-
-	if !ok {
-		return
-	}
-
-	tx4, ok := add(ctx, t, l, tx1.Holder, asset1, amounts[3],
-		ledger.OrderID("order2"),
-		ledger.OrderItemID("001"),
-	)
-
-	if !ok {
-		return
-	}
-
-	orders := []*ledger.Transaction{}
-	err = l.Orders(ctx, tx1.Holder, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
-		if assert.Equal(t, tx1.Holder, tx.Holder) {
-			orders = append(orders, tx)
-			return true, nil
-		} else {
-			return false, nil
-		}
-	})
-
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	assert.Len(t, orders, 2)
-
-	orders = []*ledger.Transaction{}
-	err = l.OrderItems(ctx, tx1.Holder, tx1.Order, "", func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
-		if assert.Equal(t, tx1.Holder, tx.Holder) && assert.Equal(t, tx1.Order, tx.Order) {
-			orders = append(orders, tx)
-			return true, nil
-		} else {
-			return false, nil
-		}
-	})
-
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	assert.Len(t, orders, 2)
-
-	_ = tx2
-	_ = tx3
-	_ = tx4
 
 }
 
@@ -743,68 +817,74 @@ func Test_Accounts(t *testing.T) {
 
 	defer client.Close(ctx)
 
-	l := ledger.New(client,
-		ledger.SupportedAssets(cfg.Assets),
-		ledger.MultiAccounts(false),
-	)
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
 
-	asset := randomAsset(assets)
-	tx, err := l.Add(ctx, randomName(), asset, one,
-		ledger.OrderID("o1"),
-		ledger.OrderItemID("001"),
-	)
-	if !assert.NoError(t, err) {
-		return
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.MultiAccounts(false),
+				ledger.Format(f),
+			)
+
+			asset := randomAsset(assets)
+			tx, err := l.Add(ctx, randomName(), asset, one,
+				ledger.OrderID("o1"),
+				ledger.OrderItemID("001"),
+			)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx) {
+				return
+			}
+
+			assert.Greater(t, tx.TX(), uint64(0))
+
+			asset = types.Bitcoin
+			tx, err = l.Add(ctx, tx.Holder, asset, one,
+				ledger.OrderID("o2"),
+				ledger.OrderItemID("001"),
+			)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx) {
+				return
+			}
+
+			assert.Greater(t, tx.TX(), uint64(0))
+			account := tx.Account
+
+			accounts, err := l.Accounts(ctx, tx.Holder, tx.Asset)
+
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, accounts) {
+				return
+			}
+
+			assert.Len(t, accounts, 1)
+			assert.Contains(t, accounts, account)
+
+			accounts, err = l.Accounts(ctx, tx.Holder, types.AllAssets)
+
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, accounts) {
+				return
+			}
+
+			assert.Len(t, accounts, 2)
+			assert.Contains(t, accounts, account)
+			assert.Contains(t, accounts, tx.Account)
+		})
 	}
-
-	if !assert.NotNil(t, tx) {
-		return
-	}
-
-	assert.Greater(t, tx.TX(), uint64(0))
-
-	asset = types.Bitcoin
-	tx, err = l.Add(ctx, tx.Holder, asset, one,
-		ledger.OrderID("o2"),
-		ledger.OrderItemID("001"),
-	)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, tx) {
-		return
-	}
-
-	assert.Greater(t, tx.TX(), uint64(0))
-	account := tx.Account
-
-	accounts, err := l.Accounts(ctx, tx.Holder, tx.Asset)
-
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, accounts) {
-		return
-	}
-
-	assert.Len(t, accounts, 1)
-	assert.Contains(t, accounts, account)
-
-	accounts, err = l.Accounts(ctx, tx.Holder, types.AllAssets)
-
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, accounts) {
-		return
-	}
-
-	assert.Len(t, accounts, 2)
-	assert.Contains(t, accounts, account)
-	assert.Contains(t, accounts, tx.Account)
 }
 
 func Test_AccountInfo(t *testing.T) {
@@ -816,34 +896,40 @@ func Test_AccountInfo(t *testing.T) {
 
 	defer client.Close(ctx)
 
-	l := ledger.New(client,
-		ledger.SupportedAssets(cfg.Assets),
-	)
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
 
-	asset := randomAsset(assets)
-	tx, err := l.Add(ctx, randomName(), asset, one)
-	if !assert.NoError(t, err) {
-		return
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.Format(f),
+			)
+
+			asset := randomAsset(assets)
+			tx, err := l.Add(ctx, randomName(), asset, one)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx) {
+				return
+			}
+
+			assert.Greater(t, tx.TX(), uint64(0))
+
+			info, err := l.AccountInfo(ctx, tx.Account)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, info) {
+				return
+			}
+
+			assert.Equal(t, tx.Account, info.Account)
+			assert.Equal(t, tx.Holder, info.Holder)
+			assert.Equal(t, tx.Asset, info.Asset)
+		})
 	}
-
-	if !assert.NotNil(t, tx) {
-		return
-	}
-
-	assert.Greater(t, tx.TX(), uint64(0))
-
-	info, err := l.AccountInfo(ctx, tx.Account)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, info) {
-		return
-	}
-
-	assert.Equal(t, tx.Account, info.Account)
-	assert.Equal(t, tx.Holder, info.Holder)
-	assert.Equal(t, tx.Asset, info.Asset)
 
 }
 
@@ -856,53 +942,59 @@ func Test_Asset_Balances(t *testing.T) {
 
 	defer client.Close(ctx)
 
-	l := ledger.New(client,
-		ledger.SupportedAssets(cfg.Assets),
-	)
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
 
-	asset1 := randomAsset(assets)
-	asset2 := randomAsset(assets)
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.Format(f),
+			)
 
-	sumAsset1 := decimal.Zero
-	amounts := randFloats(4)
-	holder = randomName()
+			asset1 := randomAsset(assets)
+			asset2 := randomAsset(assets)
 
-	for i := 0; i < len(amounts)-1; i++ {
-		tx, ok := add(ctx, t, l, holder, asset1, amounts[i],
-			ledger.OrderID("order1"),
-			ledger.OrderItemID("001"),
-		)
+			sumAsset1 := decimal.Zero
+			amounts := randFloats(4)
+			holder = randomName()
 
-		if !ok {
-			return
-		}
+			for i := 0; i < len(amounts)-1; i++ {
+				tx, ok := add(ctx, t, l, holder, asset1, amounts[i],
+					ledger.OrderID("order1"),
+					ledger.OrderItemID("001"),
+				)
 
-		sumAsset1 = sumAsset1.Add(tx.Amount)
-	}
+				if !ok {
+					return
+				}
 
-	_, ok := add(ctx, t, l, holder, asset2, amounts[len(amounts)-1],
-		ledger.OrderID("order1"),
-		ledger.OrderItemID("002"),
-	)
+				sumAsset1 = sumAsset1.Add(tx.Amount)
+			}
 
-	if !ok {
-		return
-	}
+			_, ok := add(ctx, t, l, holder, asset2, amounts[len(amounts)-1],
+				ledger.OrderID("order1"),
+				ledger.OrderItemID("002"),
+			)
 
-	b, err := l.AssetBalance(ctx, types.AllAssets)
+			if !ok {
+				return
+			}
 
-	if !assert.NoError(t, err) {
-		return
-	}
+			b, err := l.AssetBalance(ctx, types.AllAssets)
 
-	if !assert.NotNil(t, b) {
-		return
-	}
+			if !assert.NoError(t, err) {
+				return
+			}
 
-	assert.True(t, len(b) >= 2)
-	if assert.Contains(t, b, asset1) && assert.Contains(t, b, asset2) {
-		assert.NotZero(t, b[asset1])
-		assert.NotZero(t, b[asset2])
+			if !assert.NotNil(t, b) {
+				return
+			}
+
+			assert.True(t, len(b) >= 2)
+			if assert.Contains(t, b, asset1) && assert.Contains(t, b, asset2) {
+				assert.NotZero(t, b[asset1])
+				assert.NotZero(t, b[asset2])
+			}
+		})
 	}
 }
 
@@ -915,105 +1007,111 @@ func Test_Transactions(t *testing.T) {
 
 	defer client.Close(ctx)
 
-	l := ledger.New(client,
-		ledger.SupportedAssets(cfg.Assets),
-		ledger.MultiAccounts(),
-	)
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
 
-	amounts := randFloats(3)
+			l := ledger.New(client,
+				ledger.SupportedAssets(cfg.Assets),
+				ledger.MultiAccounts(),
+				ledger.Format(f),
+			)
 
-	asset1 := randomAsset(assets)
-	tx1, err := l.Add(ctx, randomName(), asset1, amounts[0],
-		ledger.OrderID("o1"),
-		ledger.OrderItemID("001"),
-	)
-	if !assert.NoError(t, err) {
-		return
+			amounts := randFloats(3)
+
+			asset1 := randomAsset(assets)
+			tx1, err := l.Add(ctx, randomName(), asset1, amounts[0],
+				ledger.OrderID("o1"),
+				ledger.OrderItemID("001"),
+			)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx1) {
+				return
+			}
+
+			assert.Greater(t, tx1.TX(), uint64(0))
+
+			asset2 := types.Bitcoin
+			tx2, err := l.Add(ctx, tx1.Holder, asset2, amounts[1],
+				ledger.OrderID("o2"),
+				ledger.OrderItemID("001"),
+			)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx2) {
+				return
+			}
+
+			assert.Greater(t, tx2.TX(), uint64(0))
+
+			tx3, err := l.Add(ctx, tx1.Holder, asset1, amounts[2],
+				ledger.Account(newAccount(randomName(), asset1)),
+				ledger.OrderID("o2"),
+				ledger.OrderItemID("001"),
+			)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			if !assert.NotNil(t, tx3) {
+				return
+			}
+
+			assert.Greater(t, tx3.TX(), uint64(0))
+
+			txs := map[uint64]*ledger.Transaction{}
+
+			err = l.Transactions(ctx, tx1.Holder, types.AllAssets, types.AllAccounts, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
+				txs[tx.TX()] = tx
+				return true, nil
+			})
+
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			assert.Len(t, txs, 3)
+
+			assert.Equal(t, tx1.ID, txs[tx1.TX()].ID)
+			assert.Equal(t, tx2.ID, txs[tx2.TX()].ID)
+			assert.Equal(t, tx3.ID, txs[tx3.TX()].ID)
+
+			txs = map[uint64]*ledger.Transaction{}
+
+			err = l.Transactions(ctx, tx1.Holder, tx1.Asset, types.AllAccounts, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
+				txs[tx.TX()] = tx
+				return true, nil
+			})
+
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			assert.Len(t, txs, 2)
+
+			assert.Equal(t, tx1.ID, txs[tx1.TX()].ID)
+			assert.Equal(t, tx3.ID, txs[tx3.TX()].ID)
+
+			txs = map[uint64]*ledger.Transaction{}
+
+			err = l.Transactions(ctx, tx1.Holder, tx1.Asset, tx1.Account, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
+				txs[tx.TX()] = tx
+				return true, nil
+			})
+
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			assert.Len(t, txs, 1)
+
+			assert.Equal(t, tx1.ID, txs[tx1.TX()].ID)
+		})
 	}
-
-	if !assert.NotNil(t, tx1) {
-		return
-	}
-
-	assert.Greater(t, tx1.TX(), uint64(0))
-
-	asset2 := types.Bitcoin
-	tx2, err := l.Add(ctx, tx1.Holder, asset2, amounts[1],
-		ledger.OrderID("o2"),
-		ledger.OrderItemID("001"),
-	)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, tx2) {
-		return
-	}
-
-	assert.Greater(t, tx2.TX(), uint64(0))
-
-	tx3, err := l.Add(ctx, tx1.Holder, asset1, amounts[2],
-		ledger.Account(newAccount(randomName(), asset1)),
-		ledger.OrderID("o2"),
-		ledger.OrderItemID("001"),
-	)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, tx3) {
-		return
-	}
-
-	assert.Greater(t, tx3.TX(), uint64(0))
-
-	txs := map[uint64]*ledger.Transaction{}
-
-	err = l.Transactions(ctx, tx1.Holder, types.AllAssets, types.AllAccounts, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
-		txs[tx.TX()] = tx
-		return true, nil
-	})
-
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	assert.Len(t, txs, 3)
-
-	assert.Equal(t, tx1.ID, txs[tx1.TX()].ID)
-	assert.Equal(t, tx2.ID, txs[tx2.TX()].ID)
-	assert.Equal(t, tx3.ID, txs[tx3.TX()].ID)
-
-	txs = map[uint64]*ledger.Transaction{}
-
-	err = l.Transactions(ctx, tx1.Holder, tx1.Asset, types.AllAccounts, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
-		txs[tx.TX()] = tx
-		return true, nil
-	})
-
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	assert.Len(t, txs, 2)
-
-	assert.Equal(t, tx1.ID, txs[tx1.TX()].ID)
-	assert.Equal(t, tx3.ID, txs[tx3.TX()].ID)
-
-	txs = map[uint64]*ledger.Transaction{}
-
-	err = l.Transactions(ctx, tx1.Holder, tx1.Asset, tx1.Account, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
-		txs[tx.TX()] = tx
-		return true, nil
-	})
-
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	assert.Len(t, txs, 1)
-
-	assert.Equal(t, tx1.ID, txs[tx1.TX()].ID)
 }
 
 func Test_Balance(t *testing.T) {
@@ -1025,96 +1123,102 @@ func Test_Balance(t *testing.T) {
 
 	defer client.Close(ctx)
 
-	asset1 := types.Asset("BL1")
-	asset2 := types.Asset("BL2")
+	for _, f := range formats {
+		t.Run(t.Name()+"_"+f.String(), func(t *testing.T) {
 
-	testAssets := map[types.Asset]string{
-		asset1: asset1.String(),
-		asset2: asset2.String(),
-	}
+			asset1 := types.Asset("BL1" + "_" + f.String())
+			asset2 := types.Asset("BL2" + "_" + f.String())
 
-	l := ledger.New(client,
-		ledger.SupportedAssets(testAssets),
-		ledger.MultiAccounts(),
-	)
+			testAssets := map[types.Asset]string{
+				asset1: asset1.String(),
+				asset2: asset2.String(),
+			}
 
-	amounts := randFloats(3)
+			l := ledger.New(client,
+				ledger.SupportedAssets(testAssets),
+				ledger.MultiAccounts(),
+				ledger.Format(f),
+			)
 
-	tx1, err := l.Add(ctx, randomName(), asset1, amounts[0],
-		ledger.OrderID("o1"),
-		ledger.OrderItemID("001"),
-	)
-	if !assert.NoError(t, err) {
-		return
-	}
+			amounts := randFloats(3)
 
-	if !assert.NotNil(t, tx1) {
-		return
-	}
+			tx1, err := l.Add(ctx, randomName(), asset1, amounts[0],
+				ledger.OrderID("o1"),
+				ledger.OrderItemID("001"),
+			)
+			if !assert.NoError(t, err) {
+				return
+			}
 
-	assert.Greater(t, tx1.TX(), uint64(0))
+			if !assert.NotNil(t, tx1) {
+				return
+			}
 
-	tx2, err := l.Add(ctx, tx1.Holder, asset2, amounts[0],
-		ledger.OrderID("o2"),
-		ledger.OrderItemID("001"),
-	)
-	if !assert.NoError(t, err) {
-		return
-	}
+			assert.Greater(t, tx1.TX(), uint64(0))
 
-	if !assert.NotNil(t, tx2) {
-		return
-	}
+			tx2, err := l.Add(ctx, tx1.Holder, asset2, amounts[0],
+				ledger.OrderID("o2"),
+				ledger.OrderItemID("001"),
+			)
+			if !assert.NoError(t, err) {
+				return
+			}
 
-	assert.Greater(t, tx2.TX(), uint64(0))
+			if !assert.NotNil(t, tx2) {
+				return
+			}
 
-	tx3, err := l.Add(ctx, tx1.Holder, asset1, amounts[0],
-		ledger.Account(newAccount(randomName(), asset1)),
-		ledger.OrderID("o2"),
-		ledger.OrderItemID("001"),
-	)
-	if !assert.NoError(t, err) {
-		return
-	}
+			assert.Greater(t, tx2.TX(), uint64(0))
 
-	if !assert.NotNil(t, tx3) {
-		return
-	}
+			tx3, err := l.Add(ctx, tx1.Holder, asset1, amounts[0],
+				ledger.Account(newAccount(randomName(), asset1)),
+				ledger.OrderID("o2"),
+				ledger.OrderItemID("001"),
+			)
+			if !assert.NoError(t, err) {
+				return
+			}
 
-	assert.Greater(t, tx3.TX(), uint64(0))
+			if !assert.NotNil(t, tx3) {
+				return
+			}
 
-	balance, err := l.Balance(ctx, tx1.Holder, types.AllAssets, types.AllAccounts, types.Created)
+			assert.Greater(t, tx3.TX(), uint64(0))
 
-	if !assert.NoError(t, err) {
-		return
-	}
+			balance, err := l.Balance(ctx, tx1.Holder, types.AllAssets, types.AllAccounts, types.Created)
 
-	if !assert.NotNil(t, balance) {
-		return
-	}
+			if !assert.NoError(t, err) {
+				return
+			}
 
-	if assert.Len(t, balance, 2) && assert.Contains(t, balance, asset1) && assert.Contains(t, balance, asset2) {
-		acc1 := balance[asset1]
-		acc2 := balance[asset2]
+			if !assert.NotNil(t, balance) {
+				return
+			}
 
-		sum := zero.Add(tx1.Amount).Add(tx3.Amount)
+			if assert.Len(t, balance, 2) && assert.Contains(t, balance, asset1) && assert.Contains(t, balance, asset2) {
+				acc1 := balance[asset1]
+				acc2 := balance[asset2]
 
-		assert.Equal(t, sum.String(), acc1.Sum.String())
-		assert.Equal(t, uint(2), acc1.Count)
-		assert.Equal(t, tx2.Amount.String(), acc2.Sum.String())
-		assert.Equal(t, uint(1), acc2.Count)
+				sum := zero.Add(tx1.Amount).Add(tx3.Amount)
 
-		if assert.Len(t, acc1.Accounts, 2) && assert.Contains(t, acc1.Accounts, tx1.Account) && assert.Contains(t, acc1.Accounts, tx3.Account) {
-			assert.Equal(t, tx1.Amount.String(), acc1.Accounts[tx1.Account].Sum.String())
-			assert.Equal(t, uint(1), acc1.Accounts[tx1.Account].Count)
-			assert.Equal(t, tx3.Amount.String(), acc1.Accounts[tx3.Account].Sum.String())
-			assert.Equal(t, uint(1), acc1.Accounts[tx3.Account].Count)
-		}
+				assert.Equal(t, sum.String(), acc1.Sum.String())
+				assert.Equal(t, uint(2), acc1.Count)
+				assert.Equal(t, tx2.Amount.String(), acc2.Sum.String())
+				assert.Equal(t, uint(1), acc2.Count)
 
-		if assert.Len(t, acc2.Accounts, 1) && assert.Contains(t, acc2.Accounts, tx2.Account) {
-			assert.Equal(t, tx2.Amount.String(), acc2.Accounts[tx2.Account].Sum.String())
-			assert.Equal(t, uint(1), acc2.Accounts[tx2.Account].Count)
-		}
+				if assert.Len(t, acc1.Accounts, 2) && assert.Contains(t, acc1.Accounts, tx1.Account) && assert.Contains(t, acc1.Accounts, tx3.Account) {
+					assert.Equal(t, tx1.Amount.String(), acc1.Accounts[tx1.Account].Sum.String())
+					assert.Equal(t, uint(1), acc1.Accounts[tx1.Account].Count)
+					assert.Equal(t, tx3.Amount.String(), acc1.Accounts[tx3.Account].Sum.String())
+					assert.Equal(t, uint(1), acc1.Accounts[tx3.Account].Count)
+				}
+
+				if assert.Len(t, acc2.Accounts, 1) && assert.Contains(t, acc2.Accounts, tx2.Account) {
+					assert.Equal(t, tx2.Amount.String(), acc2.Accounts[tx2.Account].Sum.String())
+					assert.Equal(t, uint(1), acc2.Accounts[tx2.Account].Count)
+				}
+			}
+		})
 	}
 
 }

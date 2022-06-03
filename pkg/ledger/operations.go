@@ -31,7 +31,7 @@ func (l *Ledger) CancelOperations(tx *Transaction) ([]interface{}, *Transaction,
 	cancel.ID = id
 	cancel.Status = types.Finished
 	cancel.Amount = tx.Amount.Neg()
-	cancel.Reference = ref
+	cancel.Reference = ref.String()
 
 	ops := []interface{}{}
 

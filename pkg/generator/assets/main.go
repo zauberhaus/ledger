@@ -5,7 +5,8 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"log"
-	"path"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -20,7 +21,12 @@ var (
 )
 
 func main() {
-	yamlFile, err := ioutil.ReadFile(path.Join("..", "..", "assets.yaml"))
+	path, err := os.Getwd()
+	if err != nil {
+		logger.Fatalf("Getwd: %v", err)
+	}
+
+	yamlFile, err := ioutil.ReadFile(filepath.Join("..", "..", "assets.yaml"))
 	if err != nil {
 		log.Printf("yamlFile.Get err   #%v ", err)
 	}
@@ -37,41 +43,22 @@ func main() {
 	sb.WriteString(doNotEdit)
 	sb.WriteString("package types\n\n")
 
-	/*
-		coins := map[string]types.Asset{}
-		for k, v := range assets {
-			_, ok := coins[v]
-			if ok {
-				v = fmt.Sprintf("%v_%v", v, k)
-			}
-
-			coins[v] = types.Asset(k)
-		}
-
-			symbols := []string{}
-			reverse := map[types.Asset]string{}
-			for k, v := range coins {
-				reverse[v] = k
-				symbols = append(symbols, v.String())
-			}
-	*/
-
 	symbols := maps.Keys(assets)
 	sort.Strings(symbols)
 
-	sb.WriteString("var DefaultAssetNames = Assets{\n")
+	sb.WriteString("var DefaultAssetMap = Assets{\n")
 
 	for _, s := range symbols {
-		//k := types.Asset(s)
 		v := assets[s]
-		//sb.WriteString(fmt.Sprintf("\t\"%v\": Asset(\"%v\"),\n", k, v))
 		sb.WriteString(fmt.Sprintf("\tAsset(\"%v\"): \"%v\",\n", s, v))
 	}
 
 	sb.WriteString("}\n\n")
 
-	logger.Infof("Write assets file: %v", filename)
-	err = ioutil.WriteFile(filename, []byte(sb.String()), fs.ModePerm)
+	filepath := filepath.Join(path, filename)
+
+	logger.Infof("Write assets file: %v", filepath)
+	err = ioutil.WriteFile(filepath, []byte(sb.String()), fs.ModePerm)
 	if err != nil {
 		logger.Fatalf("Error write %v: %v", filename, err)
 	}

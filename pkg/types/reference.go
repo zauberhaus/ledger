@@ -15,6 +15,10 @@ func NewReference(i interface{}) (Reference, error) {
 	return Reference(string(data)), nil
 }
 
+func (r Reference) String() string {
+	return string(r)
+}
+
 func (r Reference) Content() interface{} {
 	var content interface{}
 	err := json.Unmarshal([]byte(r), &content)

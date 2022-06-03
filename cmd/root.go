@@ -8,6 +8,7 @@ import (
 	"unsafe"
 
 	"github.com/creasty/defaults"
+	"github.com/ec-systems/core.ledger.service/docs"
 	"github.com/ec-systems/core.ledger.service/pkg/config"
 	"github.com/ec-systems/core.ledger.service/pkg/logger"
 	"github.com/ec-systems/core.ledger.service/pkg/types"
@@ -48,8 +49,14 @@ func GetRootCmd(version *Version) *RootCommand {
 				}
 
 				if cfg.Assets == nil || len(cfg.Assets) == 0 {
-					cfg.Assets = types.DefaultAssetNames
+					cfg.Assets = types.DefaultAssetMap
 				}
+
+				if cfg.Statuses == nil || len(cfg.Statuses) == 0 {
+					cfg.Statuses = types.DefaultStatusMap
+				}
+
+				docs.SwaggerInfo.Version = rootCmd.GetVersion().GitVersion
 
 				return nil
 			}},

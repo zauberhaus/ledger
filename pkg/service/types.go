@@ -1,5 +1,15 @@
 package service
 
+type Holder struct {
+	Name     string
+	Accounts []*Account
+}
+
+type Account struct {
+	Account string
+	Asset   string
+}
+
 type Asset struct {
 	Symbol string
 	Name   string

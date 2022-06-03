@@ -47,6 +47,10 @@ If you want to start a local immudb instance only, you can call:
 docker-compose up immudb -d
 ```
 
+## Configuration
+
+Examples are in the folder [pkg/config/examples/conf.sample.json](https://github.com/ec-systems/core.ledger.service/tree/dev/pkg/config/examples)
+
 ## Generate files after changes
 
 ```bash
@@ -79,7 +83,7 @@ docker build --platform linux/amd64 -t gcr.io/astute-synapse-332322/core-workflo
 docker push gcr.io/astute-synapse-332322/core-workflow-worker:{version}
 ```
 
-## Dev and Admin tools
+## Command line tool
 
 ```bash
 ./core.ledger.service --help

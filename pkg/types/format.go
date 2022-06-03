@@ -23,7 +23,7 @@ var Formats = map[string]Format{
 }
 
 func (s Format) MarshalText() (text []byte, err error) {
-	return []byte(fmt.Sprintf("%v", uint16(s))), nil
+	return []byte(fmt.Sprintf("%v", s)), nil
 }
 
 func (s *Format) GetFlag() pflag.Value {

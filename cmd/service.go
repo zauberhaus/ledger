@@ -3,6 +3,7 @@ package cmd
 import (
 	"strings"
 
+	"github.com/ec-systems/core.ledger.service/docs"
 	"github.com/ec-systems/core.ledger.service/pkg/client"
 	"github.com/ec-systems/core.ledger.service/pkg/config"
 	"github.com/ec-systems/core.ledger.service/pkg/ledger"
@@ -45,12 +46,23 @@ func addServiceCmd(root *RootCommand) {
 				}
 			}
 
+			if cfg.Service.MTls != nil {
+				docs.SwaggerInfo.Schemes = []string{"https"}
+			} else {
+				docs.SwaggerInfo.Schemes = []string{"http"}
+			}
+
+			if cfg.Service.Servername != "" {
+				docs.SwaggerInfo.Host = fmt.Sprintf("%v:%d", cfg.Service.Servername, cfg.Service.Port)
+			}
+
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Configuration()
 
-			logger.Info(cfg)
+			logger.Infof("Start ledger service %v", root.GetVersion().GitVersion)
+			logger.Infof("Configuration\n%v", cfg)
 
 			client, err := client.New(cmd.Context(), cfg.ClientOptions.Username, cfg.ClientOptions.Password, cfg.ClientOptions.Database,
 				client.ClientOptions(cfg.ClientOptions),
@@ -84,6 +96,9 @@ func addServiceCmd(root *RootCommand) {
 	cmd.Flags().StringP("interface", "i", cfg.Service.Device, "Network device for listener")
 	root.bindFlags(cmd.Flags(), "Service.Device", "interface")
 
+	cmd.Flags().String("servername", cfg.Service.Servername, "Published server name")
+	root.bindFlags(cmd.Flags(), "Service.Servername", "servername")
+
 	cmd.Flags().IntP("port", "p", cfg.Service.Port, "Service port")
 	root.bindFlags(cmd.Flags(), "Service.Port", "port")
 
@@ -92,6 +107,9 @@ func addServiceCmd(root *RootCommand) {
 
 	cmd.Flags().Bool("production", cfg.Service.Production, "Service port")
 	root.bindFlags(cmd.Flags(), "Service.Production", "production")
+
+	cmd.Flags().Bool("access-log", cfg.Service.AccessLogger, "Enabled access logger")
+	root.bindFlags(cmd.Flags(), "Service.AccessLogger", "access-log")
 
 	root.AddCommand(cmd)
 }

@@ -81,10 +81,6 @@ func (l *MTlsService) StartMetrics() error {
 	return server.ListenAndServe()
 }
 
-func (s *MTlsService) Mount(path string, router chi.Router) {
-	s.router.Mount(path, router)
-}
-
 func (s *MTlsService) getTLSConfig(ca string) (*tls.Config, error) {
 	caCert, err := ioutil.ReadFile(ca)
 	if err != nil {

@@ -24,8 +24,8 @@ func NewHealthService(ledger *ledger.Ledger) map[string]http.HandlerFunc {
 // @Summary      Health
 // @Description  Show health status
 // @Tags         Health
-// @Produce      json
-// @Success      200  string
+// @Produce      plain/text
+// @Success      200
 // @Failure      500
 // @Router       /health [get]
 func (h *HealthService) health(w http.ResponseWriter, r *http.Request) {

@@ -20,7 +20,6 @@ type LedgerService struct {
 }
 
 // @title Core Ledger
-// @version 0.0.1
 // @description This is the web service of the core asset ledger.
 
 // @contact.name Easy Crypto Core Team
@@ -40,17 +39,29 @@ func NewLedgerService(ctx context.Context, ledger *ledger.Ledger, cfg *config.Se
 		swagger = Mount("/swagger", httpSwagger.WrapHandler)
 	}
 
+	var accessLogger ServiceOption
+	if cfg.AccessLogger {
+		logger.Info("Enable access logger")
+		accessLogger = Use(middleware.Logger)
+	}
+
+	var redirect ServiceOption
+	if swagger != nil {
+		redirect = Redirect("/", "/swagger/index.html")
+	}
+
 	svc.svc = NewMTlsService(
 		Metrics(cfg.Metrics, "ledger"),
-		Use(middleware.Logger),
+		accessLogger,
 		Use(middleware.Recoverer),
 		Device(cfg.Device),
 		Port(cfg.Port),
 		MTls((*config.MTLsOptions)(cfg.MTls)),
 		Mount("/accounts", NewAccountsService(ledger)),
 		Mount("/info", NewInfoService(ledger)),
-		Get(NewHealthService(ledger)),
+		Method("GET", NewHealthService(ledger)),
 		swagger,
+		redirect,
 	)
 
 	return svc, nil

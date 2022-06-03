@@ -20,16 +20,127 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/accounts/{holder}/{asset}/{account}/{id}": {
-            "delete": {
-                "description": "Remove or remove assets from ledger by reverting a transaction",
+        "/accounts/": {
+            "get": {
+                "description": "List all holders in the ledger",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Accounts"
                 ],
-                "summary": "Cancel a transaction",
+                "summary": "List Holders",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/service.Holder"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": ""
+                    },
+                    "500": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/accounts/{holder}": {
+            "get": {
+                "description": "List accounts and balances of a holder",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounts"
+                ],
+                "summary": "List User Accounts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account Holder",
+                        "name": "holder",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ledger.Transaction"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": ""
+                    },
+                    "500": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/accounts/{holder}/{asset}": {
+            "get": {
+                "description": "List accounts and balances of a asset of a holder",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounts"
+                ],
+                "summary": "List Asset Accounts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account Holder",
+                        "name": "holder",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Asset Symbol",
+                        "name": "asset",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ledger.Transaction"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": ""
+                    },
+                    "500": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/accounts/{holder}/{asset}/{account}": {
+            "get": {
+                "description": "List all the transactions of an account",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounts"
+                ],
+                "summary": "List Transactions",
                 "parameters": [
                     {
                         "type": "string",
@@ -47,9 +158,123 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Reference",
-                        "name": "ref",
-                        "in": "query"
+                        "description": "Account",
+                        "name": "account",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ledger.Transaction"
+                        }
+                    },
+                    "404": {
+                        "description": ""
+                    },
+                    "500": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/accounts/{holder}/{asset}/{account}/{id}": {
+            "get": {
+                "description": "Show the history of a transaction",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounts"
+                ],
+                "summary": "Show History",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account Holder",
+                        "name": "holder",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Asset Symbol",
+                        "name": "asset",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Account",
+                        "name": "account",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transaction ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ledger.Transaction"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": ""
+                    },
+                    "500": {
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove or add assets from ledger by reverting a transaction",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounts"
+                ],
+                "summary": "Revert a Transaction",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account Holder",
+                        "name": "holder",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Asset Symbol",
+                        "name": "asset",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Account",
+                        "name": "account",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transaction ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -61,6 +286,60 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": ""
+                    },
+                    "404": {
+                        "description": ""
+                    },
+                    "500": {
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "description": "Change the status of a transaction",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Accounts"
+                ],
+                "summary": "Change the Transaction Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account Holder",
+                        "name": "holder",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Asset Symbol",
+                        "name": "asset",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Account",
+                        "name": "account",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transaction ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ledger.Transaction"
+                        }
                     },
                     "404": {
                         "description": ""
@@ -211,26 +490,20 @@ const docTemplate = `{
         },
         "/health": {
             "get": {
-                "description": "List of the statuses supported by the ledger",
+                "description": "Show health status",
                 "produces": [
-                    "application/json"
+                    "plain/text"
                 ],
                 "tags": [
                     "Health"
                 ],
-                "summary": "Database Health",
+                "summary": "Health",
                 "responses": {
                     "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/definitions/service.Status"
-                                }
-                            }
-                        }
+                        "description": ""
+                    },
+                    "500": {
+                        "description": ""
                     }
                 }
             }
@@ -283,212 +556,6 @@ const docTemplate = `{
                     }
                 }
             }
-        },
-        "/{holder}/{asset}": {
-            "get": {
-                "description": "List accounts and balances of a holder",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Accounts"
-                ],
-                "summary": "List Accounts",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Account Holder",
-                        "name": "holder",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Asset Symbol",
-                        "name": "asset",
-                        "in": "path"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/ledger.Transaction"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": ""
-                    },
-                    "500": {
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/{holder}/{asset}/{account}": {
-            "get": {
-                "description": "List all the transactions of an account",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Accounts"
-                ],
-                "summary": "List Transactions",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Account Holder",
-                        "name": "holder",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Asset Symbol",
-                        "name": "asset",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Account",
-                        "name": "account",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/ledger.Transaction"
-                        }
-                    },
-                    "404": {
-                        "description": ""
-                    },
-                    "500": {
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/{holder}/{asset}/{account}/{id}": {
-            "delete": {
-                "description": "Show the transaction history",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Accounts"
-                ],
-                "summary": "Show History",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Account Holder",
-                        "name": "holder",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Asset Symbol",
-                        "name": "asset",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Account",
-                        "name": "account",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Transaction ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/ledger.Transaction"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": ""
-                    },
-                    "500": {
-                        "description": ""
-                    }
-                }
-            },
-            "patch": {
-                "description": "Set the status of a transaction",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Accounts"
-                ],
-                "summary": "Change a Transaction",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Account Holder",
-                        "name": "holder",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Asset Symbol",
-                        "name": "asset",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Account",
-                        "name": "account",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Transaction ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/ledger.Transaction"
-                        }
-                    },
-                    "404": {
-                        "description": ""
-                    },
-                    "500": {
-                        "description": ""
-                    }
-                }
-            }
         }
     },
     "definitions": {
@@ -499,9 +566,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "Order": {
-                    "type": "string"
-                },
-                "Ref": {
                     "type": "string"
                 },
                 "account": {
@@ -525,10 +589,24 @@ const docTemplate = `{
                 "modified": {
                     "type": "string"
                 },
+                "reference": {
+                    "type": "string"
+                },
                 "status": {
                     "type": "integer"
                 },
                 "user": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.Account": {
+            "type": "object",
+            "properties": {
+                "account": {
+                    "type": "string"
+                },
+                "asset": {
                     "type": "string"
                 }
             }
@@ -540,6 +618,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "symbol": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.Holder": {
+            "type": "object",
+            "properties": {
+                "accounts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.Account"
+                    }
+                },
+                "name": {
                     "type": "string"
                 }
             }
@@ -560,7 +652,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "0.0.1",
+	Version:          "",
 	Host:             "",
 	BasePath:         "/",
 	Schemes:          []string{},

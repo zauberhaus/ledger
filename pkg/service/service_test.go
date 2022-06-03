@@ -46,7 +46,7 @@ const (
 var (
 	cfg = config.Config{
 		LogLevel:  logger.InfoLevel,
-		Assets:    types.DefaultAssetNames,
+		Assets:    types.DefaultAssetMap,
 		Statuses:  types.DefaultStatusMap,
 		BatchSize: 25,
 		Format:    types.JSON,
@@ -80,7 +80,8 @@ var (
 		},
 	}
 
-	url = ""
+	url        = ""
+	metricsUrl = ""
 
 	assets = types.Assets{}
 )
@@ -155,10 +156,10 @@ func Test_Add_Remove_Balance(t *testing.T) {
 	assert.Equal(t, holder, tx1.Holder)
 	assert.Equal(t, order, tx1.Order)
 	assert.Equal(t, item, tx1.Item)
-	assert.Equal(t, ref, tx1.Reference.Content())
 	assert.Equal(t, asset, tx1.Asset)
 	assert.Equal(t, amount1.String(), tx1.Amount.String())
 	assert.Equal(t, types.Created, tx1.Status)
+	assert.Equal(t, ref, tx1.Reference)
 
 	amount2 := amount1.Div(decimal.NewFromFloat(2))
 
@@ -179,10 +180,10 @@ func Test_Add_Remove_Balance(t *testing.T) {
 	assert.Equal(t, holder, tx2.Holder)
 	assert.Equal(t, order, tx2.Order)
 	assert.Equal(t, item, tx2.Item)
-	assert.Equal(t, ref, tx2.Reference.Content())
 	assert.Equal(t, asset, tx2.Asset)
 	assert.Equal(t, amount2.Neg().String(), tx2.Amount.String())
 	assert.Equal(t, types.Created, tx2.Status)
+	assert.Equal(t, ref, tx2.Reference)
 
 	resp, err = get("/accounts/%v/%v", holder, asset)
 	if !assert.NoError(t, err) || !assert.Equal(t, resp.StatusCode, 200) {
@@ -270,7 +271,7 @@ func TestMain(m *testing.M) {
 		rand.Seed(time.Now().UTC().UnixNano())
 		ctx := context.Background()
 
-		client, port, err := start(ctx, &cfg)
+		client, port, metrics, err := start(ctx, &cfg)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -280,6 +281,7 @@ func TestMain(m *testing.M) {
 		time.Sleep(100 * time.Millisecond)
 
 		url = fmt.Sprintf("http://localhost:%d", port)
+		metricsUrl = fmt.Sprintf("http://localhost:%d", metrics)
 	}
 
 	code := m.Run()
@@ -287,10 +289,15 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func start(ctx context.Context, c *config.Config) (*client.Client, int, error) {
+func start(ctx context.Context, c *config.Config) (*client.Client, int, int, error) {
 	port, err := freeport.GetFreePort()
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, 0, err
+	}
+
+	metrics, err := freeport.GetFreePort()
+	if err != nil {
+		return nil, 0, 0, err
 	}
 
 	client, err := client.New(ctx, c.ClientOptions.Username, c.ClientOptions.Password, c.ClientOptions.Database,
@@ -298,7 +305,7 @@ func start(ctx context.Context, c *config.Config) (*client.Client, int, error) {
 		client.Limit(25),
 	)
 	if err != nil {
-		return nil, 0, fmt.Errorf("database client error: %v", err)
+		return nil, 0, 0, fmt.Errorf("database client error: %v", err)
 	}
 
 	l := ledger.New(client,
@@ -308,16 +315,16 @@ func start(ctx context.Context, c *config.Config) (*client.Client, int, error) {
 
 	scfg := cfg.Service
 	scfg.Port = port
+	scfg.Metrics = metrics
 
 	svc, err := service.NewLedgerService(ctx, l, &scfg)
 	if err != nil {
-		return nil, 0, fmt.Errorf("service error: %v", err)
+		return nil, 0, 0, fmt.Errorf("service error: %v", err)
 	}
 
-	logger.Infof("Ledger service listen on %v:%v", c.Service.Device, c.Service.Port)
 	go svc.Start()
 
-	return client, port, nil
+	return client, port, metrics, nil
 }
 
 func randomName() string {

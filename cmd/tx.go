@@ -99,16 +99,6 @@ func addTxCmd(root *RootCommand) {
 				}
 			}
 
-			/*
-				status := types.AllStatuses
-				if len(args) > 3 {
-					status, err = statuses.Parse(args[3])
-					if err != nil {
-						return err
-					}
-				}
-			*/
-
 			ref, err := cmd.Flags().GetBool("ref")
 			if err != nil {
 				return err

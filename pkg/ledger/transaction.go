@@ -28,8 +28,8 @@ type Transaction struct {
 	Status    types.Status
 	Modified  time.Time
 	Created   time.Time
-	Reference types.Reference `json:"Ref,omitempty" swaggertype:"primitive,string"`
-	User      string
+	Reference string `json:",omitempty"`
+	User      string `json:",omitempty"`
 }
 
 func (tx *Transaction) Copy() *Transaction {

@@ -36,12 +36,14 @@ type Config struct {
 }
 
 type ServiceConfig struct {
-	Device     string
-	Port       int `default:"8888"`
-	Production bool
-	Metrics    int `default:"9094"`
+	Device       string
+	Port         int `default:"8888"`
+	Production   bool
+	AccessLogger bool `default:"true"`
+	Metrics      int  `default:"9094"`
+	Servername   string
 
-	MTls *MTLsOptions
+	MTls *MTLsOptions `json:",omitempty" yaml:",omitempty"`
 }
 
 type MTLsOptions immudb.MTLsOptions

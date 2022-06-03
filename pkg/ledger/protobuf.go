@@ -41,7 +41,7 @@ func (ProtobufSerializer) Marshal(v interface{}, version uint16) ([]byte, error)
 			Created:   created,
 			Modified:  modified,
 			User:      o.User,
-			Reference: string(o.Reference),
+			Reference: o.Reference,
 		}
 
 		return proto.Marshal(tx)
@@ -81,7 +81,7 @@ func (ProtobufSerializer) Unmarshal(data []byte, v interface{}, version uint16) 
 
 		o.Status = types.Status(tx.Status)
 		o.User = tx.User
-		o.Reference = types.Reference(tx.Reference)
+		o.Reference = tx.Reference
 
 	default:
 		return fmt.Errorf("protobuf unmarshal: unsupported type: %v", reflect.TypeOf(v))

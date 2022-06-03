@@ -72,13 +72,8 @@ func Account(account types.Account) TransactionOption {
 	})
 }
 
-func Reference(r interface{}) TransactionOption {
+func Reference(ref string) TransactionOption {
 	return TransactionOptionFunc(func(tx *Transaction) {
-		ref, err := types.NewReference(r)
-		if err != nil {
-			tx.Reference = types.Reference(err.Error())
-		}
-
 		tx.Reference = ref
 	})
 }

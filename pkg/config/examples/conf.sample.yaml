@@ -32,9 +32,36 @@ service:
   device: ""
   port: 8888
   production: false
+  accesslogger: true
   metrics: 9094
-  mtls: null
-assets: []
-statuses: {}
+  servername: ""
+assets:
+  - 1INCH
+  - AAVE
+  - ADA
+  - AGI
+  - AION
+  - ALGO
+  - ANKR
+  - APE
+  - AR
+  - ARK
+  - ATOM
+  - AUDIO
+  - AVAX
+  - AXS
+  - BAND
+  - BAT
+  - BCH
+  - BEAM
+  - BNB
+  - BSV
+  - '...'
+statuses:
+  Canceled: "999"
+  CancellationFinished: "998"
+  Created: "0"
+  Finished: "1000"
+  Unknown: "-1"
 batchsize: 25
-format: "0"
+format: protobuf
