@@ -81,7 +81,8 @@ func addHistoryCmd(root *RootCommand) {
 			table.SetHeader([]string{"TX", "Date", "Status"})
 
 			err = l.History(cmd.Context(), types.ID{UUID: id}, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
-				table.Append(tx.Change())
+				table.Append([]string{
+					fmt.Sprintf("%v", tx.TX()), tx.Modified.Format(ledger.TimeFormat), tx.Status.String(l.SupportedStatus())})
 				return true, nil
 			})
 

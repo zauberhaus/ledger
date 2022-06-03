@@ -1327,15 +1327,31 @@ func remove(ctx context.Context, t *testing.T, l *ledger.Ledger, holder string, 
 
 func check(t *testing.T, tx *ledger.Transaction, tx2 *ledger.Transaction) bool {
 
-	if assert.False(t, tx.Modified.IsZero()) || assert.False(t, tx2.Modified.IsZero()) {
-		return false
+	if tx.Status == types.Created {
+		if !assert.True(t, tx.Modified.IsZero()) {
+			return false
+		}
+	} else {
+		if !assert.False(t, tx.Modified.IsZero()) {
+			return false
+		}
 	}
 
-	if assert.Equal(t, tx.Modified.Format(time.RFC3339), tx2.Modified.Format(time.RFC3339)) {
-		tx.Modified = tx2.Modified
+	if tx2.Status == types.Created {
+		if !assert.True(t, tx2.Modified.IsZero()) {
+			return false
+		}
 	} else {
-		return false
+		if !assert.False(t, tx2.Modified.IsZero()) {
+			return false
+		}
 	}
+
+	//if assert.Equal(t, tx.Modified.Format(time.RFC3339), tx2.Modified.Format(time.RFC3339)) {
+	tx.Modified = tx2.Modified
+	//} else {
+	//	return false
+	//}
 
 	if assert.False(t, tx.Created.IsZero()) || assert.False(t, tx2.Created.IsZero()) {
 		return false

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"hash/crc64"
 	"strings"
-	"time"
 
 	"github.com/codenotary/immudb/pkg/api/schema"
 	"github.com/shopspring/decimal"
@@ -297,9 +296,8 @@ func (l *Ledger) CreateTx(ctx context.Context, holder string, asset types.Asset,
 	}
 
 	tx := &Transaction{
-		Modified: time.Now(),
-		ID:       id,
-		Holder:   holder,
+		ID:     id,
+		Holder: holder,
 
 		Status: types.Created,
 		Asset:  asset,

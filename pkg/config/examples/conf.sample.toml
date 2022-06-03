@@ -208,8 +208,8 @@ LogLevel = "info"
   Servername = ""
 
 [Statuses]
-  Canceled = "999"
-  CancellationFinished = "998"
-  Created = "0"
-  Finished = "1000"
-  Unknown = "-1"
+  Canceled = 999
+  CancellationFinished = 998
+  Created = 0
+  Finished = 1000
+  Unknown = -1

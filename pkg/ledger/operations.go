@@ -112,11 +112,7 @@ func (l *Ledger) UpdateOperations(tx *Transaction) ([]interface{}, string, error
 }
 
 func (l *Ledger) CreateOperations(tx *Transaction) ([]interface{}, string, error) {
-	tx.Modified = time.Now()
-
-	if tx.Created.IsZero() {
-		tx.Created = tx.Modified
-	}
+	tx.Created = time.Now()
 
 	if !tx.Account.Check() {
 		return nil, "", NewError(BadRequestError, "checksum check failed for '%v'", tx.Account)

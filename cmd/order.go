@@ -83,7 +83,13 @@ func addOrdersCmd(root *RootCommand) {
 				table.SetHeader([]string{"TX", "Date", "Order"})
 
 				err = l.Orders(cmd.Context(), holder, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
-					table.Append(tx.OrderRow(false))
+					row := []string{
+						fmt.Sprintf("%v", tx.TX()),
+						tx.Created.Format(ledger.TimeFormat),
+						tx.Order,
+					}
+
+					table.Append(row)
 					return true, nil
 				})
 				if err != nil {
@@ -96,7 +102,18 @@ func addOrdersCmd(root *RootCommand) {
 				table.SetHeader([]string{"TX", "Date", "Order", "Item", "Asset", "Status", "Amount"})
 
 				err = l.OrderItems(cmd.Context(), holder, order, item, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
-					table.Append(tx.OrderRow(true))
+					row := []string{
+						fmt.Sprintf("%v", tx.TX()),
+						tx.Created.Format(ledger.TimeFormat),
+						tx.Order,
+					}
+
+					row = append(row, tx.Item)
+					row = append(row, tx.Asset.String())
+					row = append(row, tx.Status.String(l.SupportedStatus()))
+					row = append(row, tx.Amount.String())
+
+					table.Append(row)
 					return true, nil
 				})
 				if err != nil {

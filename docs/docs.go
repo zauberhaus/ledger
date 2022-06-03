@@ -74,7 +74,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/ledger.Transaction"
+                                "$ref": "#/definitions/service.Balance"
                             }
                         }
                     },
@@ -118,7 +118,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/ledger.Transaction"
+                                "$ref": "#/definitions/service.Balance"
                             }
                         }
                     },
@@ -168,7 +168,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/ledger.Transaction"
+                            "$ref": "#/definitions/service.Transaction"
                         }
                     },
                     "404": {
@@ -226,7 +226,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/ledger.Transaction"
+                                "$ref": "#/definitions/service.Transaction"
                             }
                         }
                     },
@@ -281,7 +281,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/ledger.Transaction"
+                            "$ref": "#/definitions/service.Transaction"
                         }
                     },
                     "400": {
@@ -294,7 +294,9 @@ const docTemplate = `{
                         "description": ""
                     }
                 }
-            },
+            }
+        },
+        "/accounts/{holder}/{asset}/{account}/{id}/{status}": {
             "patch": {
                 "description": "Change the status of a transaction",
                 "produces": [
@@ -332,13 +334,20 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Transaction Status",
+                        "name": "status",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/ledger.Transaction"
+                            "$ref": "#/definitions/service.Transaction"
                         }
                     },
                     "404": {
@@ -405,7 +414,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/ledger.Transaction"
+                            "$ref": "#/definitions/service.Transaction"
                         }
                     },
                     "400": {
@@ -473,7 +482,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/ledger.Transaction"
+                            "$ref": "#/definitions/service.Transaction"
                         }
                     },
                     "400": {
@@ -559,79 +568,72 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "ledger.Transaction": {
+        "service.Account": {
             "type": "object",
             "properties": {
-                "Item": {
+                "Account": {
                     "type": "string"
                 },
-                "Order": {
-                    "type": "string"
-                },
-                "account": {
-                    "type": "string"
-                },
-                "amount": {
-                    "type": "number"
-                },
-                "asset": {
-                    "type": "string"
-                },
-                "created": {
-                    "type": "string"
-                },
-                "holder": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "modified": {
-                    "type": "string"
-                },
-                "reference": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "integer"
-                },
-                "user": {
+                "Asset": {
                     "type": "string"
                 }
             }
         },
-        "service.Account": {
+        "service.AccountBalance": {
             "type": "object",
             "properties": {
-                "account": {
+                "Count": {
+                    "type": "integer"
+                },
+                "ID": {
                     "type": "string"
                 },
-                "asset": {
-                    "type": "string"
+                "Sum": {
+                    "type": "number"
                 }
             }
         },
         "service.Asset": {
             "type": "object",
             "properties": {
-                "name": {
+                "Name": {
                     "type": "string"
                 },
-                "symbol": {
+                "Symbol": {
                     "type": "string"
+                }
+            }
+        },
+        "service.Balance": {
+            "type": "object",
+            "properties": {
+                "Accounts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.AccountBalance"
+                    }
+                },
+                "Asset": {
+                    "type": "string"
+                },
+                "Count": {
+                    "type": "integer"
+                },
+                "Sum": {
+                    "type": "number"
                 }
             }
         },
         "service.Holder": {
             "type": "object",
             "properties": {
-                "accounts": {
+                "Accounts": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/service.Account"
                     }
                 },
-                "name": {
+                "Name": {
                     "type": "string"
                 }
             }
@@ -639,10 +641,51 @@ const docTemplate = `{
         "service.Status": {
             "type": "object",
             "properties": {
-                "id": {
+                "ID": {
                     "type": "integer"
                 },
-                "name": {
+                "Name": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.Transaction": {
+            "type": "object",
+            "properties": {
+                "Account": {
+                    "type": "string"
+                },
+                "Amount": {
+                    "type": "number"
+                },
+                "Asset": {
+                    "type": "string"
+                },
+                "Created": {
+                    "type": "string"
+                },
+                "Holder": {
+                    "type": "string"
+                },
+                "ID": {
+                    "type": "string"
+                },
+                "Item": {
+                    "type": "string"
+                },
+                "Modified": {
+                    "type": "string"
+                },
+                "Order": {
+                    "type": "string"
+                },
+                "Reference": {
+                    "type": "string"
+                },
+                "Status": {
+                    "type": "string"
+                },
+                "User": {
                     "type": "string"
                 }
             }

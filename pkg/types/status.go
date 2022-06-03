@@ -3,6 +3,7 @@
 package types
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -12,20 +13,35 @@ import (
 )
 
 var (
-	statuses Statuses = DefaultStatusMap
-
 	AllStatuses Status = -1
 )
 
 type Statuses map[string]Status
 
-func (s Statuses) Parse(txt string) (Status, error) {
-	status, ok := s[txt]
-	if !ok {
-		return Status(-1), fmt.Errorf("unsupported status: %v", txt)
+func (s Statuses) Parse(text string) (Status, error) {
+	if id, err := strconv.Atoi(string(text)); err == nil {
+		status := Status(id)
+		if !s.IsValid(status) {
+			return 0, fmt.Errorf("invalid status: %v", id)
+		}
+		return status, nil
+	} else {
+		status, ok := s[string(text)]
+		if !ok {
+			return 0, fmt.Errorf("status %v not found", text)
+		}
+		return status, nil
+	}
+}
+
+func (s Statuses) IsValid(status Status) bool {
+	for _, v := range s {
+		if v == status {
+			return true
+		}
 	}
 
-	return status, nil
+	return false
 }
 
 func (s Statuses) Map() map[string]int {
@@ -74,6 +90,15 @@ func (s Statuses) Type() string {
 	return "Statuses"
 }
 
+func (s Statuses) MarshalJSON() ([]byte, error) {
+	output := map[string]int64{}
+
+	for name, status := range s {
+		output[name] = int64(status)
+	}
+	return json.Marshal(output)
+}
+
 func StatusHookFunc() mapstructure.DecodeHookFuncType {
 	// Wrapped in a function call to add optional input parameters (eg. separator)
 	return func(
@@ -105,48 +130,16 @@ func StatusHookFunc() mapstructure.DecodeHookFuncType {
 
 type Status int64
 
-func (s Status) String() string {
+func (s Status) String(st Statuses) string {
 	if s == -1 {
-		return ""
+		return "Unknown"
 	}
 
-	for k, v := range statuses {
+	for k, v := range st {
 		if v == s {
 			return k
 		}
 	}
 
 	return "Unknown status"
-}
-
-func (s Status) Valid() bool {
-	for _, v := range statuses {
-		if s == v {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (s Status) MarshalText() (text []byte, err error) {
-	return []byte(fmt.Sprintf("%v", int(s))), nil
-}
-
-func (s *Status) UnmarshalText(text []byte) error {
-	if id, err := strconv.Atoi(string(text)); err == nil {
-		status := Status(id)
-		if !status.Valid() {
-			return fmt.Errorf("invalid status: %v", id)
-		}
-		*s = status
-	} else {
-		tmp, err := statuses.Parse(string(text))
-		if err != nil {
-			return err
-		}
-		*s = tmp
-	}
-
-	return nil
 }

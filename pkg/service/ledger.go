@@ -47,6 +47,7 @@ func NewLedgerService(ctx context.Context, ledger *ledger.Ledger, cfg *config.Se
 
 	var redirect ServiceOption
 	if swagger != nil {
+		logger.Info("Enable redirect to swagger ui")
 		redirect = Redirect("/", "/swagger/index.html")
 	}
 

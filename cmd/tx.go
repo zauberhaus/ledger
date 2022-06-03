@@ -183,7 +183,7 @@ func addTxCmd(root *RootCommand) {
 					_ = t
 				}
 
-				table.Append(row(tx, colFlag))
+				table.Append(row(tx, colFlag, l.SupportedStatus()))
 				return true, nil
 			})
 
@@ -214,7 +214,7 @@ func addTxCmd(root *RootCommand) {
 	cmd.Flags().BoolP("verify", "V", false, "Verify all transactions")
 }
 
-func row(t *ledger.Transaction, cols uint8) []string {
+func row(t *ledger.Transaction, cols uint8, statuses types.Statuses) []string {
 	row := []string{}
 
 	row = append(row, fmt.Sprintf("%v", t.TX()))
@@ -238,7 +238,7 @@ func row(t *ledger.Transaction, cols uint8) []string {
 	}
 
 	if isSet(cols, statusCol) {
-		row = append(row, t.Status.String())
+		row = append(row, t.Status.String(statuses))
 	}
 
 	if isSet(cols, keyCol) {

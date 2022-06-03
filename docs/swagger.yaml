@@ -1,60 +1,82 @@
 basePath: /
 definitions:
-  ledger.Transaction:
-    properties:
-      Item:
-        type: string
-      Order:
-        type: string
-      account:
-        type: string
-      amount:
-        type: number
-      asset:
-        type: string
-      created:
-        type: string
-      holder:
-        type: string
-      id:
-        type: string
-      modified:
-        type: string
-      reference:
-        type: string
-      status:
-        type: integer
-      user:
-        type: string
-    type: object
   service.Account:
     properties:
-      account:
+      Account:
         type: string
-      asset:
+      Asset:
         type: string
+    type: object
+  service.AccountBalance:
+    properties:
+      Count:
+        type: integer
+      ID:
+        type: string
+      Sum:
+        type: number
     type: object
   service.Asset:
     properties:
-      name:
+      Name:
         type: string
-      symbol:
+      Symbol:
         type: string
+    type: object
+  service.Balance:
+    properties:
+      Accounts:
+        items:
+          $ref: '#/definitions/service.AccountBalance'
+        type: array
+      Asset:
+        type: string
+      Count:
+        type: integer
+      Sum:
+        type: number
     type: object
   service.Holder:
     properties:
-      accounts:
+      Accounts:
         items:
           $ref: '#/definitions/service.Account'
         type: array
-      name:
+      Name:
         type: string
     type: object
   service.Status:
     properties:
-      id:
+      ID:
         type: integer
-      name:
+      Name:
+        type: string
+    type: object
+  service.Transaction:
+    properties:
+      Account:
+        type: string
+      Amount:
+        type: number
+      Asset:
+        type: string
+      Created:
+        type: string
+      Holder:
+        type: string
+      ID:
+        type: string
+      Item:
+        type: string
+      Modified:
+        type: string
+      Order:
+        type: string
+      Reference:
+        type: string
+      Status:
+        type: string
+      User:
         type: string
     type: object
 info:
@@ -100,7 +122,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/ledger.Transaction'
+              $ref: '#/definitions/service.Balance'
             type: array
         "404":
           description: ""
@@ -129,7 +151,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/ledger.Transaction'
+              $ref: '#/definitions/service.Balance'
             type: array
         "404":
           description: ""
@@ -163,7 +185,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/ledger.Transaction'
+            $ref: '#/definitions/service.Transaction'
         "404":
           description: ""
         "500":
@@ -201,7 +223,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/ledger.Transaction'
+            $ref: '#/definitions/service.Transaction'
         "400":
           description: ""
         "404":
@@ -241,7 +263,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/ledger.Transaction'
+              $ref: '#/definitions/service.Transaction'
             type: array
         "404":
           description: ""
@@ -250,6 +272,7 @@ paths:
       summary: Show History
       tags:
       - Accounts
+  /accounts/{holder}/{asset}/{account}/{id}/{status}:
     patch:
       description: Change the status of a transaction
       parameters:
@@ -273,13 +296,18 @@ paths:
         name: id
         required: true
         type: string
+      - description: Transaction Status
+        in: path
+        name: status
+        required: true
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/ledger.Transaction'
+            $ref: '#/definitions/service.Transaction'
         "404":
           description: ""
         "500":
@@ -324,7 +352,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/ledger.Transaction'
+            $ref: '#/definitions/service.Transaction'
         "400":
           description: ""
         "404":
@@ -370,7 +398,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/ledger.Transaction'
+            $ref: '#/definitions/service.Transaction'
         "400":
           description: ""
         "404":

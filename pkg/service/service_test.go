@@ -144,22 +144,27 @@ func Test_Add_Remove_Balance(t *testing.T) {
 		return
 	}
 
-	var tx1 ledger.Transaction
+	var tx1 service.Transaction
 	err = json.NewDecoder(resp.Body).Decode(&tx1)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	assert.NotEmpty(t, tx1.ID)
-	assert.NotEmpty(t, tx1.Account)
+	if !assert.NotEmpty(t, tx1.ID) || !assert.NotEmpty(t, tx1.Account) {
+		return
+	}
 
-	assert.Equal(t, holder, tx1.Holder)
-	assert.Equal(t, order, tx1.Order)
-	assert.Equal(t, item, tx1.Item)
-	assert.Equal(t, asset, tx1.Asset)
-	assert.Equal(t, amount1.String(), tx1.Amount.String())
-	assert.Equal(t, types.Created, tx1.Status)
-	assert.Equal(t, ref, tx1.Reference)
+	ok := assert.Equal(t, holder, tx1.Holder)
+	ok = ok && assert.Equal(t, order, tx1.Order)
+	ok = ok && assert.Equal(t, item, tx1.Item)
+	ok = ok && assert.Equal(t, asset.String(), tx1.Asset)
+	ok = ok && assert.Equal(t, amount1.String(), tx1.Amount.String())
+	ok = ok && assert.Equal(t, types.Created.String(types.DefaultStatusMap), tx1.Status)
+	ok = ok && assert.Equal(t, ref, tx1.Reference)
+
+	if !ok {
+		return
+	}
 
 	amount2 := amount1.Div(decimal.NewFromFloat(2))
 
@@ -168,38 +173,42 @@ func Test_Add_Remove_Balance(t *testing.T) {
 		return
 	}
 
-	var tx2 ledger.Transaction
+	var tx2 service.Transaction
 	err = json.NewDecoder(resp.Body).Decode(&tx2)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	assert.NotEmpty(t, tx2.ID)
-	assert.Equal(t, tx1.Account, tx2.Account)
+	ok = assert.NotEmpty(t, tx2.ID)
+	ok = ok && assert.Equal(t, tx1.Account, tx2.Account)
+	ok = ok && assert.Equal(t, holder, tx2.Holder)
+	ok = ok && assert.Equal(t, order, tx2.Order)
+	ok = ok && assert.Equal(t, item, tx2.Item)
+	ok = ok && assert.Equal(t, asset.String(), tx2.Asset)
+	ok = ok && assert.Equal(t, amount2.Neg().String(), tx2.Amount.String())
+	ok = ok && assert.Equal(t, types.Created.String(types.DefaultStatusMap), tx2.Status)
+	ok = ok && assert.Equal(t, ref, tx2.Reference)
 
-	assert.Equal(t, holder, tx2.Holder)
-	assert.Equal(t, order, tx2.Order)
-	assert.Equal(t, item, tx2.Item)
-	assert.Equal(t, asset, tx2.Asset)
-	assert.Equal(t, amount2.Neg().String(), tx2.Amount.String())
-	assert.Equal(t, types.Created, tx2.Status)
-	assert.Equal(t, ref, tx2.Reference)
+	if !ok {
+		return
+	}
 
 	resp, err = get("/accounts/%v/%v", holder, asset)
 	if !assert.NoError(t, err) || !assert.Equal(t, resp.StatusCode, 200) {
 		return
 	}
 
-	var balances map[types.Asset]*types.Balance
+	var balances []*service.Balance
 	err = json.NewDecoder(resp.Body).Decode(&balances)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	assert.Contains(t, balances, asset)
-	assert.Equal(t, uint(2), balances[asset].Count)
-	assert.Equal(t, amount1.Add(amount2.Neg()).String(), balances[asset].Sum.String())
-	assert.Len(t, balances[asset].Accounts, 1)
+	assert.Len(t, balances, 1)
+	assert.Equal(t, asset.String(), balances[0].Asset)
+	assert.Equal(t, uint(2), balances[0].Count)
+	assert.Equal(t, amount1.Add(amount2.Neg()).String(), balances[0].Sum.String())
+	assert.Len(t, balances[0].Accounts, 1)
 
 	asset2 := randomAsset()
 	amount3, _ := decimal.NewFromString("0.048724761927846319849328746")
@@ -209,7 +218,7 @@ func Test_Add_Remove_Balance(t *testing.T) {
 		return
 	}
 
-	var tx3 ledger.Transaction
+	var tx3 service.Transaction
 	err = json.NewDecoder(resp.Body).Decode(&tx3)
 	if !assert.NoError(t, err) {
 		return
@@ -223,28 +232,27 @@ func Test_Add_Remove_Balance(t *testing.T) {
 		return
 	}
 
-	var balances2 map[types.Asset]*types.Balance
+	var balances2 []*service.Balance
 	err = json.NewDecoder(resp.Body).Decode(&balances2)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	assert.Contains(t, balances2, asset)
-	assert.Contains(t, balances2, asset2)
+	assert.Len(t, balances2, 2)
 
 	resp, err = patch("/accounts/%v/%v/%v/%v/%v", tx3.Holder, tx3.Asset, tx3.Account, tx3.ID, types.Finished)
 	if !assert.NoError(t, err) || !assert.Equal(t, resp.StatusCode, 200) {
 		return
 	}
 
-	var tx4 ledger.Transaction
+	var tx4 service.Transaction
 	err = json.NewDecoder(resp.Body).Decode(&tx4)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	assert.Equal(t, tx3.ID, tx4.ID)
-	assert.Equal(t, types.Finished, tx4.Status)
+	assert.Equal(t, types.Finished.String(types.DefaultStatusMap), tx4.Status)
 
 	time.Sleep(500 * time.Millisecond)
 
@@ -253,15 +261,15 @@ func Test_Add_Remove_Balance(t *testing.T) {
 		return
 	}
 
-	var history []*ledger.Transaction
+	var history []*service.Transaction
 	err = json.NewDecoder(resp.Body).Decode(&history)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	if assert.NotNil(t, history) && assert.Len(t, history, 2) {
-		assert.Equal(t, types.Created, history[0].Status)
-		assert.Equal(t, types.Finished, history[1].Status)
+		assert.Equal(t, types.Created.String(types.DefaultStatusMap), history[0].Status)
+		assert.Equal(t, types.Finished.String(types.DefaultStatusMap), history[1].Status)
 	}
 }
 

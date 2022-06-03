@@ -1,7 +1,6 @@
 package ledger
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/codenotary/immudb/pkg/api/schema"
@@ -16,20 +15,20 @@ const (
 type Transaction struct {
 	tx      uint64
 	key     string
-	ID      types.ID      `swaggertype:"primitive,string"`
-	Account types.Account `swaggertype:"primitive,string"`
-	Holder  string
-	Order   string `json:"Order,omitempty"`
-	Item    string `json:"Item,omitempty"`
+	ID      types.ID      `json:"ID" swaggertype:"primitive,string"`
+	Account types.Account `json:"Account" swaggertype:"primitive,string"`
+	Holder  string        `json:"Holder"`
+	Order   string        `json:"Order,omitempty"`
+	Item    string        `json:"Item,omitempty"`
 
-	Asset  types.Asset
-	Amount decimal.Decimal
+	Asset  types.Asset     `json:"Asset"`
+	Amount decimal.Decimal `json:"Amount"`
 
-	Status    types.Status
-	Modified  time.Time
-	Created   time.Time
-	Reference string `json:",omitempty"`
-	User      string `json:",omitempty"`
+	Status    types.Status `json:"Status" swaggertype:"primitive,string"`
+	Modified  time.Time    `json:"Modified,omitempty"`
+	Created   time.Time    `json:"Created"`
+	Reference string       `json:"Reference,omitempty"`
+	User      string       `json:"User,omitempty"`
 }
 
 func (tx *Transaction) Copy() *Transaction {
@@ -76,26 +75,4 @@ func (t *Transaction) SetKey(key string) {
 
 func (t *Transaction) Key() string {
 	return t.key
-}
-
-func (t *Transaction) OrderRow(items bool) []string {
-	row := []string{
-		fmt.Sprintf("%v", t.TX()),
-		t.Created.Format(TimeFormat),
-		t.Order,
-	}
-
-	if items {
-		row = append(row, t.Item)
-		row = append(row, t.Asset.String())
-		row = append(row, t.Status.String())
-		row = append(row, t.Amount.String())
-	}
-
-	return row
-}
-
-func (t *Transaction) Change() []string {
-	return []string{
-		fmt.Sprintf("%v", t.TX()), t.Modified.Format(TimeFormat), t.Status.String()}
 }

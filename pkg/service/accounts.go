@@ -58,7 +58,7 @@ func NewAccountsService(ledger *ledger.Ledger) chi.Router {
 // @Param        order   	query     	string  false  	"Order ID"
 // @Param        item   	query    	string  false  	"Order Item ID"
 // @Param        ref   		query      	string 	false	"Reference"
-// @Success      200  {object}  ledger.Transaction
+// @Success      200  {object}  service.Transaction
 // @Failure      400
 // @Failure      404
 // @Failure      500
@@ -98,7 +98,9 @@ func (a *AccountsService) add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	render.JSON(w, r, tx)
+	output := &Transaction{}
+	output.Set(a.ledger, tx)
+	render.JSON(w, r, output)
 }
 
 // @Summary      Remove Assets
@@ -111,7 +113,7 @@ func (a *AccountsService) add(w http.ResponseWriter, r *http.Request) {
 // @Param        order   	query     	string  false  	"Order ID"
 // @Param        item   	query    	string  false  	"Order Item ID"
 // @Param        ref   		query      	string 	false	"Reference"
-// @Success      200  {object}  ledger.Transaction
+// @Success      200  {object}  service.Transaction
 // @Failure      400
 // @Failure      404
 // @Failure      500
@@ -151,7 +153,9 @@ func (a *AccountsService) remove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	render.JSON(w, r, tx)
+	output := &Transaction{}
+	output.Set(a.ledger, tx)
+	render.JSON(w, r, output)
 }
 
 // @Summary      Revert a Transaction
@@ -162,7 +166,7 @@ func (a *AccountsService) remove(w http.ResponseWriter, r *http.Request) {
 // @Param        asset   	path      	string  true  	"Asset Symbol"
 // @Param        account   	path      	string  true  	"Account"
 // @Param        id   		path      	string  true  	"Transaction ID"
-// @Success      200  {object}  ledger.Transaction
+// @Success      200  {object}  service.Transaction
 // @Failure      400
 // @Failure      404
 // @Failure      500
@@ -224,7 +228,9 @@ func (a *AccountsService) cancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	render.JSON(w, r, tx)
+	output := &Transaction{}
+	output.Set(a.ledger, tx)
+	render.JSON(w, r, output)
 }
 
 // @Summary      List Holders
@@ -275,7 +281,7 @@ func (a *AccountsService) holders(w http.ResponseWriter, r *http.Request) {
 // @Tags         Accounts
 // @Produce      json
 // @Param        holder   	path      	string  true  	"Account Holder"
-// @Success 	 200 		{array} ledger.Transaction
+// @Success 	 200 		{array} service.Balance
 // @Failure      404
 // @Failure      500
 // @Router       /accounts/{holder} [get]
@@ -297,7 +303,28 @@ func (a *AccountsService) allAccounts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	render.JSON(w, r, balances)
+	list := []*Balance{}
+
+	for k, v := range balances {
+		accounts := []*AccountBalance{}
+
+		for a, b := range v.Accounts {
+			accounts = append(accounts, &AccountBalance{
+				ID:    a.String(),
+				Count: b.Count,
+				Sum:   b.Sum,
+			})
+		}
+
+		list = append(list, &Balance{
+			Asset:    k.String(),
+			Accounts: accounts,
+			Count:    v.Count,
+			Sum:      v.Sum,
+		})
+	}
+
+	render.JSON(w, r, list)
 }
 
 // @Summary      List Asset Accounts
@@ -306,7 +333,7 @@ func (a *AccountsService) allAccounts(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Param        holder   	path      	string  true  	"Account Holder"
 // @Param        asset   	path      	string  false  	"Asset Symbol"
-// @Success 	 200 		{array} ledger.Transaction
+// @Success 	 200 		{array} service.Balance
 // @Failure      404
 // @Failure      500
 // @Router       /accounts/{holder}/{asset} [get]
@@ -334,7 +361,28 @@ func (a *AccountsService) accounts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	render.JSON(w, r, balances)
+	list := []*Balance{}
+
+	for k, v := range balances {
+		accounts := []*AccountBalance{}
+
+		for a, b := range v.Accounts {
+			accounts = append(accounts, &AccountBalance{
+				ID:    a.String(),
+				Count: b.Count,
+				Sum:   b.Sum,
+			})
+		}
+
+		list = append(list, &Balance{
+			Asset:    k.String(),
+			Accounts: accounts,
+			Count:    v.Count,
+			Sum:      v.Sum,
+		})
+	}
+
+	render.JSON(w, r, list)
 }
 
 // @Summary      List Transactions
@@ -344,7 +392,7 @@ func (a *AccountsService) accounts(w http.ResponseWriter, r *http.Request) {
 // @Param        holder   	path      	string  true  	"Account Holder"
 // @Param        asset   	path      	string  true  	"Asset Symbol"
 // @Param        account   	path      	string  true  	"Account"
-// @Success 	 200 		{object} ledger.Transaction
+// @Success 	 200 		{object} service.Transaction
 // @Failure      404
 // @Failure      500
 // @Router       /accounts/{holder}/{asset}/{account} [get]
@@ -386,11 +434,17 @@ func (a *AccountsService) transactions(w http.ResponseWriter, r *http.Request) {
 		account.Set(in)
 	}
 
-	txs := []*ledger.Transaction{}
+	txs := []*Transaction{}
 
 	err = a.ledger.Transactions(r.Context(), in.Holder, in.Asset, in.Account, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
-		txs = append(txs, tx)
-		return true, nil
+		if tx.Holder == in.Holder && tx.Asset == in.Asset && tx.Account == in.Account {
+			output := &Transaction{}
+			output.Set(a.ledger, tx)
+			txs = append(txs, output)
+			return true, nil
+		} else {
+			return false, fmt.Errorf("invalid holder/asset/account combination: %v", in.ID)
+		}
 	})
 
 	if err != nil {
@@ -409,7 +463,7 @@ func (a *AccountsService) transactions(w http.ResponseWriter, r *http.Request) {
 // @Param        asset   	path      	string  true  	"Asset Symbol"
 // @Param        account   	path      	string  true  	"Account"
 // @Param        id   		path      	string  true  	"Transaction ID"
-// @Success 	 200 		{array} ledger.Transaction
+// @Success 	 200 		{array} service.Transaction
 // @Failure      404
 // @Failure      500
 // @Router       /accounts/{holder}/{asset}/{account}/{id} [get]
@@ -463,16 +517,17 @@ func (a *AccountsService) history(w http.ResponseWriter, r *http.Request) {
 		account.Set(in)
 	}
 
-	txs := []*ledger.Transaction{}
+	txs := []*Transaction{}
 
 	err = a.ledger.History(r.Context(), in.ID, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
 		if tx.Holder == in.Holder && tx.Asset == in.Asset && tx.Account == in.Account && tx.ID == in.ID {
-			txs = append(txs, tx)
+			output := &Transaction{}
+			output.Set(a.ledger, tx)
+			txs = append(txs, output)
+			return true, nil
 		} else {
 			return false, fmt.Errorf("invalid holder/asset/account/id for tx history: %v", in.ID)
 		}
-
-		return true, nil
 	})
 
 	if err != nil {
@@ -491,10 +546,11 @@ func (a *AccountsService) history(w http.ResponseWriter, r *http.Request) {
 // @Param        asset   	path      	string  true  	"Asset Symbol"
 // @Param        account   	path      	string  true  	"Account"
 // @Param        id   		path      	string  true  	"Transaction ID"
-// @Success 	 200 		{object} ledger.Transaction
+// @Param        status   	path      	int  	true  	"Transaction Status"
+// @Success 	 200 		{object} service.Transaction
 // @Failure      404
 // @Failure      500
-// @Router       /accounts/{holder}/{asset}/{account}/{id} [patch]
+// @Router       /accounts/{holder}/{asset}/{account}/{id}/{status} [patch]
 func (a *AccountsService) change(w http.ResponseWriter, r *http.Request) {
 	holder := a.holder(w, r)
 	if holder == "" {
@@ -575,7 +631,9 @@ func (a *AccountsService) change(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	render.JSON(w, r, tx)
+	output := &Transaction{}
+	output.Set(a.ledger, tx)
+	render.JSON(w, r, output)
 }
 
 func (t *AccountsService) asset(w http.ResponseWriter, r *http.Request) (types.Asset, error) {
