@@ -22,14 +22,16 @@
 Local immudb:
 
 ```bash
-DB=test source
+DB=test source env.sh
+./core.ledger.service init // only if database doesn't exist
 ./core.ledger.service service
 ```
 
 Immudb installed via Helm chart [core.immudb.helm](https://github.com/ec-systems/core.immudb.helm):
 
 ```bash
-RELEASE={helm chart name} NS={kubernetes namespace} DB=test source
+RELEASE={helm chart name} NS={kubernetes namespace} DB=test source env.sh
+./core.ledger.service init // only if database doesn't exist
 ./core.ledger.service service
 ```
 
