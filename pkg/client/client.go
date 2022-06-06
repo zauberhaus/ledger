@@ -7,6 +7,9 @@ import (
 
 	"github.com/codenotary/immudb/pkg/api/schema"
 	immudb "github.com/codenotary/immudb/pkg/client"
+	"github.com/ec-systems/core.ledger.service/pkg/logger"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type Client struct {
@@ -14,10 +17,18 @@ type Client struct {
 	options  *immudb.Options
 	limit    uint32
 	verified bool
+
+	user     []byte
+	password []byte
+	db       string
 }
 
 func New(ctx context.Context, user string, password string, db string, options ...ClientOption) (*Client, error) {
-	cl := &Client{}
+	cl := &Client{
+		user:     []byte(user),
+		password: []byte(password),
+		db:       db,
+	}
 
 	for _, option := range options {
 		if option != nil {
@@ -30,7 +41,7 @@ func New(ctx context.Context, user string, password string, db string, options .
 		return nil, err
 	}
 
-	err = client.OpenSession(ctx, []byte(user), []byte(password), db)
+	err = client.OpenSession(ctx, cl.user, cl.password, cl.db)
 	if err != nil {
 		return nil, err
 	}
@@ -46,6 +57,10 @@ func (c *Client) Close(ctx context.Context) {
 
 func (c *Client) DatabaseExist(ctx context.Context, name string) (bool, error) {
 	resp, err := c.client.DatabaseListV2(ctx)
+	for !c.checkSessionError(ctx, err) {
+		resp, err = c.client.DatabaseListV2(ctx)
+	}
+
 	if err != nil {
 		return false, err
 	}
@@ -61,6 +76,10 @@ func (c *Client) DatabaseExist(ctx context.Context, name string) (bool, error) {
 
 func (c *Client) CreateDatabase(ctx context.Context, name string) error {
 	_, err := c.client.CreateDatabaseV2(ctx, name, nil)
+	for !c.checkSessionError(ctx, err) {
+		_, err = c.client.CreateDatabaseV2(ctx, name, nil)
+	}
+
 	return err
 }
 
@@ -69,6 +88,12 @@ func (c *Client) UnloadDatabase(ctx context.Context, name string) error {
 		Database: name,
 	})
 
+	for !c.checkSessionError(ctx, err) {
+		_, err = c.client.UnloadDatabase(ctx, &schema.UnloadDatabaseRequest{
+			Database: name,
+		})
+	}
+
 	return err
 }
 
@@ -76,6 +101,12 @@ func (c *Client) DeleteDatabase(ctx context.Context, name string) error {
 	_, err := c.client.DeleteDatabase(ctx, &schema.DeleteDatabaseRequest{
 		Database: name,
 	})
+
+	for !c.checkSessionError(ctx, err) {
+		_, err = c.client.DeleteDatabase(ctx, &schema.DeleteDatabaseRequest{
+			Database: name,
+		})
+	}
 
 	return err
 }
@@ -134,6 +165,14 @@ func (c *Client) Exec(ctx context.Context, operations ...interface{}) (uint64, e
 		Operations:    ops,
 		Preconditions: pre,
 	})
+
+	for !c.checkSessionError(ctx, err) {
+		tx, err = c.client.ExecAll(ctx, &schema.ExecAllRequest{
+			Operations:    ops,
+			Preconditions: pre,
+		})
+	}
+
 	if err != nil {
 		return 0, err
 	}
@@ -143,9 +182,17 @@ func (c *Client) Exec(ctx context.Context, operations ...interface{}) (uint64, e
 
 func (c *Client) set(ctx context.Context, key []byte, value []byte) (*schema.TxHeader, error) {
 	if c.verified {
-		return c.client.VerifiedSet(ctx, key, value)
+		header, err := c.client.VerifiedSet(ctx, key, value)
+		for !c.checkSessionError(ctx, err) {
+			header, err = c.client.VerifiedSet(ctx, key, value)
+		}
+		return header, err
 	} else {
-		return c.client.Set(ctx, key, value)
+		header, err := c.client.Set(ctx, key, value)
+		for !c.checkSessionError(ctx, err) {
+			header, err = c.client.Set(ctx, key, value)
+		}
+		return header, err
 	}
 }
 
@@ -172,7 +219,7 @@ func (c *Client) Set(ctx context.Context, key []byte, value interface{}) (uint64
 			return 0, nil
 		}
 
-		tx, err := c.client.VerifiedSet(ctx, []byte(key), data)
+		tx, err := c.set(ctx, []byte(key), data)
 		if err != nil {
 			return 0, err
 		}
@@ -183,9 +230,17 @@ func (c *Client) Set(ctx context.Context, key []byte, value interface{}) (uint64
 
 func (c *Client) get(ctx context.Context, key []byte) (*schema.Entry, error) {
 	if c.verified {
-		return c.client.VerifiedGet(ctx, key)
+		entry, err := c.client.VerifiedGet(ctx, key)
+		for !c.checkSessionError(ctx, err) {
+			entry, err = c.client.VerifiedGet(ctx, key)
+		}
+		return entry, err
 	} else {
-		return c.client.Get(ctx, key)
+		entry, err := c.client.Get(ctx, key)
+		for !c.checkSessionError(ctx, err) {
+			entry, err = c.client.Get(ctx, key)
+		}
+		return entry, err
 	}
 }
 
@@ -200,9 +255,17 @@ func (c *Client) Get(ctx context.Context, key string) (*schema.Entry, error) {
 
 func (c *Client) getAt(ctx context.Context, key []byte, tx uint64) (*schema.Entry, error) {
 	if c.verified {
-		return c.client.VerifiedGetAt(ctx, key, tx)
+		entry, err := c.client.VerifiedGetAt(ctx, key, tx)
+		for !c.checkSessionError(ctx, err) {
+			entry, err = c.client.VerifiedGetAt(ctx, key, tx)
+		}
+		return entry, err
 	} else {
-		return c.client.GetAt(ctx, key, tx)
+		entry, err := c.client.GetAt(ctx, key, tx)
+		for !c.checkSessionError(ctx, err) {
+			entry, err = c.client.GetAt(ctx, key, tx)
+		}
+		return entry, err
 	}
 }
 
@@ -216,7 +279,11 @@ func (c *Client) GetAt(ctx context.Context, key string, txID uint64) (*schema.En
 }
 
 func (c *Client) GetTx(ctx context.Context, id uint64) (*schema.Tx, error) {
-	return c.client.TxByID(ctx, id)
+	tx, err := c.client.TxByID(ctx, id)
+	for !c.checkSessionError(ctx, err) {
+		tx, err = c.client.TxByID(ctx, id)
+	}
+	return tx, err
 }
 
 func (c *Client) History(ctx context.Context, key string, f func(context.Context, *schema.Entry) (bool, error)) error {
@@ -232,6 +299,10 @@ func (c *Client) History(ctx context.Context, key string, f func(context.Context
 		}
 
 		list, err := c.client.History(ctx, req)
+		for !c.checkSessionError(ctx, err) {
+			list, err = c.client.History(ctx, req)
+		}
+
 		if err != nil {
 			return fmt.Errorf("failed to read history of key %v: %v", key, err)
 		}
@@ -260,6 +331,10 @@ func (c *Client) History(ctx context.Context, key string, f func(context.Context
 
 func (c *Client) LastTX(ctx context.Context) (uint64, error) {
 	state, err := c.client.CurrentState(ctx)
+	for !c.checkSessionError(ctx, err) {
+		state, err = c.client.CurrentState(ctx)
+	}
+
 	if err != nil {
 		return 0, err
 	}
@@ -276,6 +351,10 @@ func (c *Client) Scan(ctx context.Context, prefix string, limit uint64, desc boo
 	}
 
 	list, err := c.client.StreamScan(ctx, scanReq)
+	for !c.checkSessionError(ctx, err) {
+		list, err = c.client.StreamScan(ctx, scanReq)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("error scan %v: %v", prefix, err)
 	}
@@ -301,6 +380,10 @@ func (c *Client) ScanSince(ctx context.Context, prefix string, desc bool, since 
 		}
 
 		list, err := c.client.Scan(ctx, scanReq)
+		for !c.checkSessionError(ctx, err) {
+			list, err = c.client.Scan(ctx, scanReq)
+		}
+
 		if err != nil {
 			return fmt.Errorf("error scan %v: %v", prefix, err)
 		}
@@ -329,23 +412,36 @@ func (c *Client) ScanSince(ctx context.Context, prefix string, desc bool, since 
 	return nil
 }
 
-func (c *Client) ScanSet(ctx context.Context, set string, f func(context.Context, *schema.Tx) (bool, error)) error {
-	req := &schema.ZScanRequest{
-		Set: []byte(set),
+func (c *Client) Health(ctx context.Context) (*schema.DatabaseHealthResponse, error) {
+	response, err := c.client.Health(ctx)
+	for !c.checkSessionError(ctx, err) {
+		response, err = c.client.Health(ctx)
 	}
 
-	list, err := c.client.ZScan(ctx, req)
-	if err != nil {
-		return err
-	}
-
-	for _, ze := range list.Entries {
-		_ = ze
-	}
-
-	return nil
+	return response, err
 }
 
-func (c *Client) Health(ctx context.Context) (*schema.DatabaseHealthResponse, error) {
-	return c.client.Health(ctx)
+func (c *Client) checkSessionError(ctx context.Context, err error) bool {
+	if err == nil {
+		return true
+	}
+
+	code, ok := status.FromError(err)
+	if ok {
+
+		if code.Code() == codes.PermissionDenied {
+
+			c.client.CloseSession(ctx)
+
+			err = c.client.OpenSession(ctx, c.user, c.password, c.db)
+			if err != nil {
+				logger.Error(err)
+				return false
+			}
+
+			return false
+		}
+	}
+
+	return true
 }
