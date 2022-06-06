@@ -81,8 +81,8 @@ protoc --proto_path=proto --go_out=. ./proto/transaction.proto
 ## Docker build and push to GCR
 
 ```bash
-docker build --platform linux/amd64 -t gcr.io/astute-synapse-332322/core-workflow-worker:{version} .
-docker push gcr.io/astute-synapse-332322/core-workflow-worker:{version}
+docker build --platform linux/amd64 -t gcr.io/astute-synapse-332322/core-ledger-service:{version} .
+docker push gcr.io/astute-synapse-332322/core-ledger-service:{version}
 ```
 
 ## Command line tool
