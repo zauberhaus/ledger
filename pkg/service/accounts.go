@@ -609,18 +609,7 @@ func (a *AccountsService) change(w http.ResponseWriter, r *http.Request) {
 		account.Set(in)
 	}
 
-	tx, err := a.ledger.Get(r.Context(), in.ID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	if tx.Holder != in.Holder || tx.Asset != in.Asset || tx.Account != in.Account || tx.ID != in.ID {
-		http.Error(w, "invalid holder/asset/account/id combination ", http.StatusBadRequest)
-		return
-	}
-
-	tx, err = a.ledger.Status(r.Context(), in.ID, in.Status)
+	tx, err := a.ledger.Status(r.Context(), in, in.Status)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

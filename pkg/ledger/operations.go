@@ -68,9 +68,10 @@ func (l *Ledger) RefOperation(src *Transaction, dest *Transaction) *schema.Op_Re
 }
 
 func (l *Ledger) UpdateOperations(tx *Transaction) ([]interface{}, string, error) {
-	tx.Modified = time.Now()
+	now := time.Now()
+	tx.Modified = &now
 
-	if tx.Created.IsZero() {
+	if tx.Created == nil || tx.Created.IsZero() {
 		tx.Created = tx.Modified
 	}
 
@@ -112,7 +113,8 @@ func (l *Ledger) UpdateOperations(tx *Transaction) ([]interface{}, string, error
 }
 
 func (l *Ledger) CreateOperations(tx *Transaction) ([]interface{}, string, error) {
-	tx.Created = time.Now()
+	now := time.Now()
+	tx.Created = &now
 
 	if !tx.Account.Check() {
 		return nil, "", NewError(BadRequestError, "checksum check failed for '%v'", tx.Account)

@@ -25,8 +25,8 @@ type Transaction struct {
 	Amount decimal.Decimal `json:"Amount"`
 
 	Status    types.Status `json:"Status" swaggertype:"primitive,string"`
-	Modified  time.Time    `json:"Modified,omitempty"`
-	Created   time.Time    `json:"Created"`
+	Modified  *time.Time   `json:"Modified,omitempty"`
+	Created   *time.Time   `json:"Created"`
 	Reference string       `json:"Reference,omitempty"`
 	User      string       `json:"User,omitempty"`
 }

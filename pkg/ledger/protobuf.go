@@ -5,6 +5,7 @@ package ledger
 import (
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/ec-systems/core.ledger.service/pkg/ledger/protobuf"
 	"github.com/ec-systems/core.ledger.service/pkg/types"
@@ -19,16 +20,6 @@ type ProtobufSerializer struct {
 func (ProtobufSerializer) Marshal(v interface{}, version uint16) ([]byte, error) {
 	switch o := v.(type) {
 	case *Transaction:
-		created, err := o.Created.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-
-		modified, err := o.Modified.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-
 		tx := &protobuf.Transaction{
 			ID:        o.ID.Bytes(),
 			Account:   o.Account.String(),
@@ -38,10 +29,26 @@ func (ProtobufSerializer) Marshal(v interface{}, version uint16) ([]byte, error)
 			Asset:     o.Asset.String(),
 			Amount:    o.Amount.String(),
 			Status:    int64(o.Status),
-			Created:   created,
-			Modified:  modified,
 			User:      o.User,
 			Reference: o.Reference,
+		}
+
+		if o.Created != nil {
+			created, err := o.Created.MarshalBinary()
+			if err != nil {
+				return nil, err
+			}
+
+			tx.Created = created
+		}
+
+		if o.Modified != nil {
+			modified, err := o.Modified.MarshalBinary()
+			if err != nil {
+				return nil, err
+			}
+
+			tx.Modified = modified
 		}
 
 		return proto.Marshal(tx)
@@ -61,14 +68,24 @@ func (ProtobufSerializer) Unmarshal(data []byte, v interface{}, version uint16) 
 			return err
 		}
 
-		err = o.Created.UnmarshalBinary(tx.Created)
-		if err != nil {
-			return err
+		if tx.Created != nil {
+			var tmp time.Time
+			err = tmp.UnmarshalBinary(tx.Created)
+			if err != nil {
+				return err
+			}
+
+			o.Created = &tmp
 		}
 
-		err = o.Modified.UnmarshalBinary(tx.Modified)
-		if err != nil {
-			return err
+		if tx.Modified != nil {
+			var tmp time.Time
+			err = tmp.UnmarshalBinary(tx.Modified)
+			if err != nil {
+				return err
+			}
+
+			o.Modified = &tmp
 		}
 
 		o.ID = types.NewID(tx.ID)

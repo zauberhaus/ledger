@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash/crc64"
 	"strings"
+	"time"
 
 	"github.com/codenotary/immudb/pkg/api/schema"
 	"github.com/shopspring/decimal"
@@ -260,13 +261,19 @@ func (l *Ledger) Get(ctx context.Context, transaction types.ID) (*Transaction, e
 	return tx, nil
 }
 
-func (l *Ledger) Status(ctx context.Context, key types.ID, status types.Status) (*Transaction, error) {
-	tx, err := l.Get(ctx, key)
+func (l *Ledger) Status(ctx context.Context, in *Transaction, status types.Status) (*Transaction, error) {
+	tx, err := l.Get(ctx, in.ID)
 	if err != nil {
 		return nil, err
 	}
 
+	if tx.Holder != in.Holder || tx.Asset != in.Asset || tx.Account != in.Account || tx.ID != in.ID {
+		return nil, fmt.Errorf("invalid holder/asset/account/id combination")
+	}
+
 	if tx.Status != status {
+		now := time.Now()
+		tx.Modified = &now
 		tx.Status = status
 
 		data, err := tx.Bytes(l.format)
@@ -425,6 +432,9 @@ func (l *Ledger) Cancel(ctx context.Context, holder string, asset types.Asset, a
 	if tx.Holder != holder && tx.Asset != asset && tx.Account != account {
 		return nil, NewError(BadRequestError, "inconsistent holder/account/transaction combination (%v/%v/%v)", holder, account, transaction)
 	}
+
+	now := time.Now()
+	tx.Modified = &now
 
 	ops, cancel, err := l.CancelOperations(tx)
 	if err != nil {

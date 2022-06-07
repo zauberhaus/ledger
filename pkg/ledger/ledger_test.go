@@ -434,7 +434,9 @@ func Test_Status(t *testing.T) {
 
 			time.Sleep(2 * time.Second)
 
-			tx2, err := l.Status(ctx, tx1.ID, types.Finished)
+			tx1.Status = types.Finished
+
+			tx2, err := l.Status(ctx, tx1, types.Finished)
 			if !assert.NoError(t, err) {
 				return
 			}
@@ -444,7 +446,7 @@ func Test_Status(t *testing.T) {
 			}
 
 			history := []*ledger.Transaction{}
-			err = l.History(ctx, tx1.ID, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
+			err = l.History(ctx, tx2.ID, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
 				history = append(history, tx)
 				return true, nil
 			})
@@ -518,7 +520,7 @@ func Test_History(t *testing.T) {
 			assert.Greater(t, tx1.TX(), uint64(0))
 
 			for i := 0; i < 10; i++ {
-				tx2, err := l.Status(ctx, tx1.ID, types.Finished)
+				tx2, err := l.Status(ctx, tx1, types.Finished)
 				if !assert.NoError(t, err) {
 					return
 				}
@@ -527,7 +529,7 @@ func Test_History(t *testing.T) {
 					return
 				}
 
-				tx3, err := l.Status(ctx, tx1.ID, types.Created)
+				tx3, err := l.Status(ctx, tx1, types.Created)
 				if !assert.NoError(t, err) {
 					return
 				}
@@ -1328,30 +1330,34 @@ func remove(ctx context.Context, t *testing.T, l *ledger.Ledger, holder string, 
 func check(t *testing.T, tx *ledger.Transaction, tx2 *ledger.Transaction) bool {
 
 	if tx.Status == types.Created {
-		if !assert.True(t, tx.Modified.IsZero()) {
+		if !assert.Nil(t, tx.Modified) {
 			return false
 		}
 	} else {
-		if !assert.False(t, tx.Modified.IsZero()) {
+		if !assert.NotNil(t, tx.Modified) {
 			return false
 		}
 	}
 
 	if tx2.Status == types.Created {
-		if !assert.True(t, tx2.Modified.IsZero()) {
+		if !assert.Nil(t, tx2.Modified) {
 			return false
 		}
 	} else {
-		if !assert.False(t, tx2.Modified.IsZero()) {
+		if !assert.NotNil(t, tx2.Modified) {
 			return false
 		}
 	}
 
-	//if assert.Equal(t, tx.Modified.Format(time.RFC3339), tx2.Modified.Format(time.RFC3339)) {
-	tx.Modified = tx2.Modified
-	//} else {
-	//	return false
-	//}
+	if tx.Modified != nil && tx2.Modified != nil {
+		if assert.Equal(t, tx.Modified.Format(time.RFC3339), tx2.Modified.Format(time.RFC3339)) {
+			tx.Modified = tx2.Modified
+		} else {
+			return false
+		}
+	} else if !assert.Nil(t, tx.Modified) && !assert.Nil(t, tx2.Modified) {
+		return false
+	}
 
 	if assert.False(t, tx.Created.IsZero()) || assert.False(t, tx2.Created.IsZero()) {
 		return false

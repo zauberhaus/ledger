@@ -40,11 +40,11 @@ type Transaction struct {
 	Asset  string          `json:"Asset"`
 	Amount decimal.Decimal `json:"Amount"`
 
-	Status    string    `json:"Status"`
-	Modified  time.Time `json:"Modified,omitempty"`
-	Created   time.Time `json:"Created"`
-	Reference string    `json:"Reference,omitempty"`
-	User      string    `json:"User,omitempty"`
+	Status    string     `json:"Status"`
+	Modified  *time.Time `json:"Modified,omitempty"`
+	Created   *time.Time `json:"Created"`
+	Reference string     `json:"Reference,omitempty"`
+	User      string     `json:"User,omitempty"`
 }
 
 func (t *Transaction) Set(l *ledger.Ledger, tx *ledger.Transaction) {
