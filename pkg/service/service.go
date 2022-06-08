@@ -15,17 +15,19 @@ import (
 )
 
 type MTlsService struct {
-	dev     string
-	port    int
-	metrics int
-	mtls    *config.MTLsOptions
+	dev         string
+	port        int
+	metricsPort int
+	mtls        *config.MTLsOptions
 
-	router *chi.Mux
+	router  *chi.Mux
+	metrics *chi.Mux
 }
 
 func NewMTlsService(options ...ServiceOption) *MTlsService {
 	svc := &MTlsService{
-		router: chi.NewRouter(),
+		router:  chi.NewRouter(),
+		metrics: chi.NewRouter(),
 	}
 
 	for _, o := range options {
@@ -66,18 +68,16 @@ func (l *MTlsService) Start() error {
 }
 
 func (l *MTlsService) StartMetrics() error {
-	addr := fmt.Sprintf("%v:%v", l.dev, l.metrics)
+	addr := fmt.Sprintf("%v:%v", l.dev, l.metricsPort)
 
-	r := chi.NewRouter()
-
-	r.Handle("/metrics", promhttp.Handler())
+	l.metrics.Handle("/metrics", promhttp.Handler())
 
 	server := &http.Server{
 		Addr:    addr,
-		Handler: r,
+		Handler: l.metrics,
 	}
 
-	logger.Infof("Metrics service listen on %v:%v", l.dev, l.metrics)
+	logger.Infof("Metrics service listen on %v:%v", l.dev, l.metricsPort)
 	return server.ListenAndServe()
 }
 
