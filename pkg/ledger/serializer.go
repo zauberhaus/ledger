@@ -21,6 +21,7 @@ type Serializer interface {
 var Serializers = map[types.Format]Serializer{
 	types.JSON:     &JSONSerializer{},
 	types.Protobuf: &ProtobufSerializer{},
+	types.GOB:      &GOBSerializer{},
 }
 
 func Unmarshal(e *schema.Entry, v interface{}) error {

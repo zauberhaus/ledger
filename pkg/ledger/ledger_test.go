@@ -83,6 +83,7 @@ var (
 	formats = []types.Format{
 		types.JSON,
 		types.Protobuf,
+		types.GOB,
 	}
 )
 

@@ -12,14 +12,15 @@ import (
 type Format uint16
 
 const (
-	JSON      Format = 1
-	Protobuf  Format = 2
-	TSVPacked Format = 3
+	JSON     Format = 1
+	Protobuf Format = 2
+	GOB      Format = 3
 )
 
 var Formats = map[string]Format{
 	"json":     JSON,
 	"protobuf": Protobuf,
+	"gob":      GOB,
 }
 
 func (s Format) MarshalText() (text []byte, err error) {
