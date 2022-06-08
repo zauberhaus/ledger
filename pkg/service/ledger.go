@@ -61,6 +61,7 @@ func NewLedgerService(ctx context.Context, ledger *ledger.Ledger, cfg *config.Se
 		Mount("/accounts", NewAccountsService(ledger)),
 		Mount("/info", NewInfoService(ledger)),
 		Method("GET", NewHealthService(ledger)),
+		MetricsMethod("GET", NewHealthService(ledger)),
 		swagger,
 		redirect,
 	)

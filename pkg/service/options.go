@@ -33,7 +33,7 @@ func Metrics(port int, name string, buckets ...float64) ServiceOption {
 	return ServiceOptionFunc(func(c *MTlsService) {
 		if port > 0 {
 			c.router.Use(metrics.NewMiddleware(name, buckets...))
-			c.metrics = port
+			c.metricsPort = port
 		}
 	})
 }
@@ -60,6 +60,14 @@ func Method(method string, routes map[string]http.HandlerFunc) ServiceOption {
 	return ServiceOptionFunc(func(c *MTlsService) {
 		for k, v := range routes {
 			c.router.Method(method, k, v)
+		}
+	})
+}
+
+func MetricsMethod(method string, routes map[string]http.HandlerFunc) ServiceOption {
+	return ServiceOptionFunc(func(c *MTlsService) {
+		for k, v := range routes {
+			c.metrics.Method(method, k, v)
 		}
 	})
 }

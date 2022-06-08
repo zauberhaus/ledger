@@ -46,6 +46,8 @@ func New(ctx context.Context, user string, password string, db string, options .
 		return nil, err
 	}
 
+	logger.Infof("Connected to immudb database '%v' (%v:%v)", cl.db, cl.options.Address, cl.options.Port)
+
 	cl.client = client
 
 	return cl, nil
