@@ -546,7 +546,7 @@ func (a *AccountsService) history(w http.ResponseWriter, r *http.Request) {
 // @Param        asset   	path      	string  true  	"Asset Symbol"
 // @Param        account   	path      	string  true  	"Account"
 // @Param        id   		path      	string  true  	"Transaction ID"
-// @Param        status   	path      	int  	true  	"Transaction Status"
+// @Param        status   	path      	string  true  	"Transaction Status"
 // @Success 	 200 		{object} service.Transaction
 // @Failure      404
 // @Failure      500
