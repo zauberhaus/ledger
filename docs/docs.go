@@ -336,7 +336,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Transaction Status",
                         "name": "status",
                         "in": "path",

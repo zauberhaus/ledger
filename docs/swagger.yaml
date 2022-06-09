@@ -300,7 +300,7 @@ paths:
         in: path
         name: status
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
