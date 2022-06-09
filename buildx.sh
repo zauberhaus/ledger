@@ -7,4 +7,4 @@ PLATFORMS=linux/amd64,linux/arm64
 echo "Build tag $TAG"
 
 docker buildx build --platform=$PLATFORMS -t $IMAGE -t $IMAGE:$TAG --output type=image,push=true  . 
-docker buildx build --platform=$PLATFORMS -t $IMAGE:$TAG-alpine --output type=image,push=true  . 
+docker buildx build --platform=$PLATFORMS -t $IMAGE:$TAG-alpine -f Dockerfile.alpine --output type=image,push=true  . 
