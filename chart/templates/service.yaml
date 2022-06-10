@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "chart.fullname" . }}
+  labels: 
+    {{- include "chart.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    {{- if .Values.service.port }}
+    - port: {{ .Values.service.port }}
+    {{- else if .Values.ledger.mtls.enabled }}
+    - port: 443
+    {{- else }}
+    - port: 80
+    {{- end }}
+      targetPort: web
+      protocol: TCP
+      name: web
+  selector: {{- include "chart.selectorLabels" . | nindent 4 }}

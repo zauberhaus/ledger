@@ -10,3 +10,10 @@ data/*
 certs/*
 pkg/ledger/test_data/
 .state*
+chart/Chart.lock
+chart/charts
+chart/old
+chart/kube
+chart/config
+
+chart/gcr.json

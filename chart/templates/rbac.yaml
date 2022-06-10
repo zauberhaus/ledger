@@ -1,0 +1,120 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "chart.fullname" . }}
+imagePullSecrets:
+  - name: {{ include "chart.fullname" . }}-gcr
+{{ if .Values.psp.enabled }}
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: '{{.Release.Namespace}}-{{ include "chart.fullname" . }}'
+spec:
+  allowPrivilegeEscalation: false
+  fsGroup:
+    ranges:
+      - max: 65535
+        min: 1
+    rule: MustRunAs
+  requiredDropCapabilities:
+    - ALL
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    ranges:
+      - max: 65535
+        min: 1
+    rule: MustRunAs
+  volumes:
+    - configMap
+    - emptyDir
+    - persistentVolumeClaim
+    - projected
+    - secret
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "chart.fullname" . }}
+rules:
+  - apiGroups:
+      - extensions
+    resourceNames:
+      - '{{.Release.Namespace}}-{{ include "chart.fullname" . }}'
+    resources:
+      - podsecuritypolicies
+    verbs:
+      - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "chart.fullname" . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "chart.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "chart.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+{{- if .Values.reloader.enabled }}
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: '{{.Release.Namespace}}-{{ include "chart.fullname" . }}-reloader'
+spec:
+  allowPrivilegeEscalation: false
+  fsGroup:
+    ranges:
+    - max: 65534
+      min: 65534
+    rule: MustRunAs
+  runAsUser:
+    ranges:
+    - max: 65534
+      min: 65534
+    rule: MustRunAs
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    ranges:
+    - max: 65534
+      min: 65534
+    rule: MustRunAs
+  volumes:
+  - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "chart.fullname" . }}-reloader
+rules:
+- apiGroups:
+  - extensions
+  resourceNames:
+  - {{.Release.Namespace}}-{{ include "chart.fullname" . }}-reloader
+  resources:
+  - podsecuritypolicies
+  verbs:
+  - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "chart.fullname" . }}-reloader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "chart.fullname" . }}-reloader
+subjects:
+- kind: ServiceAccount
+  name: {{ .Release.Name }}-reloader
+  namespace: {{ .Release.Namespace }}
+{{- end }}    
+{{- end }}

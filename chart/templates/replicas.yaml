@@ -1,0 +1,225 @@
+{{- if .Values.replica.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "chart.fullname" . }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "chart.selectorLabels" . | nindent 6 }}
+  serviceName: {{ include "chart.fullname" . }}-headless    
+  template:
+    metadata:
+      {{- with $.Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "chart.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "chart.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ $.Chart.Name }}-replica
+          securityContext:
+            {{- toYaml $.Values.securityContext | nindent 12 }}
+          image: "{{ $.Values.replica.image.repository }}:{{ $.Values.replica.image.tag | default "latest" }}{{- with $.Values.replica.image.hash}}@{{- .}}{{- end}}"
+          imagePullPolicy: {{ $.Values.replica.image.pullPolicy }}
+          args: 
+           - --web-server=false 
+           - --pgsql-server=false 
+          env:
+            - name: IMMUDB_DIR
+              value: /data/immudb/
+            - name: IMMUDB_REPLICATION_FOLLOWER_USERNAME
+              value: {{ $.Values.immudb.user.name }}
+            - name: IMMUDB_REPLICATION_FOLLOWER_PASSWORD
+              value: {{ $.Values.immudb.user.password }}
+            - name: IMMUDB_REPLICATION_ENABLED
+              value: "true" 
+            - name: IMMUDB_REPLICATION_MASTER_ADDRESS
+              value: {{ $.Values.immudb.address }}
+            - name: IMMUDB_REPLICATION_MTLS
+              value: "true"
+            - name: IMMUDB_REPLICATION_CERTIFICATE
+              value: {{ $.Values.immudb.mtls.certFile }}   
+            - name: IMMUDB_REPLICATION_PKEY
+              value: {{ $.Values.immudb.mtls.keyFile }}   
+            - name: IMMUDB_REPLICATION_CLIENTCAS
+              value: {{ $.Values.immudb.mtls.caFile }}
+            - name: IMMUDB_REPLICATION_SERVERNAME
+              value: {{ $.Values.immudb.mtls.serverName }}
+            - name: IMMUDB_CERTIFICATE
+            - name: IMMUDB_PKEY
+            - name: IMMUDB_CLIENTCAS
+            - name: IMMUDB_MTLS
+              value: "false" 
+            - name: LOG_LEVEL
+              value: {{ .Values.loglevel }}
+            - name: IMMUDB_ADDRESS
+            - name: IMMUDB_PORT
+              value: {{ $.Values.immudb.port | quote }}
+            - name: IMMUDB_AUTH
+            - name: IMMUDB_DETACHED 
+            - name: IMMUDB_DEVMODE 
+            - name: IMMUDB_MAINTENANCE
+            - name: IMMUADMIN_TOKENFILE
+          ports:
+          - name: grpc
+            containerPort: 3322
+          - name: metrics2
+            containerPort: 9497
+          volumeMounts:
+          - name: data
+            mountPath: /data
+          - name: immudb-ledger-client
+            mountPath: /certs/immudb
+          {{- with $.Values.replica.podSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics2
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics2
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml $.Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          env:
+            - name: LOG_LEVEL
+              value: {{ $.Values.ledger.logLevel }}
+            - name: BATCH_SIZE
+              value: {{ $.Values.ledger.batchSize | quote }}
+            - name: CLIENT_OPTIONS_ADDRESS
+              value: {{ $.Values.immudb.address }}
+            - name: CLIENT_OPTIONS_PORT
+              value: {{ $.Values.immudb.port | quote }}
+            - name: CLIENT_OPTIONS_USERNAME
+              value: {{ $.Values.immudb.user.name }}
+            - name: CLIENT_OPTIONS_PASSWORD
+              value:  {{ $.Values.immudb.user.password }}
+            - name: CLIENT_OPTIONS_MTLS
+              value: {{ $.Values.immudb.mtls.enabled | quote }}
+            - name: CLIENT_OPTIONS_DATABASE
+              value: {{ $.Values.immudb.dbName }}
+            - name: CLIENT_OPTIONS_MTLS_OPTIONS_CERTIFICATE
+              value: {{ $.Values.immudb.mtls.certFile }}
+            - name: CLIENT_OPTIONS_MTLS_OPTIONS_CLIENT_CAS
+              value: {{ $.Values.immudb.mtls.caFile }}
+            - name: CLIENT_OPTIONS_MTLS_OPTIONS_PKEY
+              value: {{ $.Values.immudb.mtls.keyFile }}
+            - name: CLIENT_OPTIONS_MTLS_OPTIONS_SERVERNAME
+              value: {{ $.Values.immudb.mtls.serverName }}
+
+            - name: SERVICE_ACCESS_LOGGER
+              value: {{ $.Values.ledger.accessLogger | quote }}
+            - name: SERVICE_METRICS
+            {{- if $.Values.ledger.metrics.enabled }}
+              value: {{ $.Values.ledger.metrics.port | quote }}
+            {{- else }}
+              value: "0"
+            {{- end}}  
+            - name: SERVICE_PORT
+            {{- if $.Values.ledger.metrics.enabled }}
+              value: "8443"
+            {{- else }}
+              value: "8080"
+            {{- end }}  
+            - name: SERVICE_PRODUCTION
+              value: {{ $.Values.ledger.production | quote }}
+            - name: SERVICE_SERVERNAME
+              value: {{ $.Values.ledger.serverName | quote }}
+            {{- if $.Values.ledger.mtls.enabled }}
+            - name: SERVICE_MTLS_CERTIFICATE
+              value: {{ $.Values.ledger.mtls.certFile }}
+            - name: SERVICE_MTLS_CLIENT_CAS
+              value: {{ $.Values.ledger.mtls.caFile }}
+            - name: SERVICE_MTLS_PKEY
+              value: {{ $.Values.ledger.mtls.keyFile }}
+            {{- end }}
+          ports:
+            - name: web
+            {{- if $.Values.ledger.mtls.enabled }}
+              containerPort: 8443
+            {{- else }}
+              containerPort: 8080
+            {{- end }}  
+              protocol: TCP
+            {{- if $.Values.ledger.metrics.enabled }}
+            - name: metrics
+              containerPort: {{ $.Values.ledger.metrics.port }}
+              protocol: TCP
+            {{- end }}  
+          volumeMounts:
+            - name: immudb-ledger-client
+              mountPath: /certs/immudb
+            - name: ledger-server
+              mountPath: /certs/server
+          {{- if $.Values.ledger.metrics.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+          {{- end }}
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+      {{- with $.Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if (or $.Values.ledger.mtls.enabled $.Values.immudb.mtls.enabled) }}
+      volumes:
+        {{- if $.Values.ledger.mtls.enabled }}
+        - name: immudb-ledger-client
+          secret:
+            secretName: {{ include "chart.fullname" . }}-immudb-client-tls
+            defaultMode: 420
+        {{- end }}    
+        {{- if $.Values.immudb.mtls.enabled }}
+        - name: ledger-server
+          secret:
+            {{- if $.Values.certs.immudb.generated }}
+            secretName: {{ include "chart.fullname" . }}-server-tls
+            {{- else }}
+            secretName: {{ $.Values.certs.immudb.seceret }}
+            {{- end }}
+            defaultMode: 420
+        {{- end }}    
+      {{- end }}      
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: {{ .Values.replica.storage.size }}
+{{- end }}
