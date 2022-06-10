@@ -14,7 +14,7 @@ type KeyIndex struct {
 }
 
 func (t *KeyIndex) Key(id types.ID) []byte {
-	return []byte(t.scan(id.HexString()))
+	return []byte(t.ID(id))
 }
 
 func (t *KeyIndex) ID(id types.ID) string {

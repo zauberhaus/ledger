@@ -414,6 +414,55 @@ func (c *Client) ScanSince(ctx context.Context, prefix string, desc bool, since 
 	return nil
 }
 
+func (c *Client) ScanSet(ctx context.Context, set string, desc bool, f func(context.Context, *schema.ZEntry) (bool, error)) error {
+	var last *schema.ZEntry
+
+	running := true
+
+	for running {
+		scanReq := &schema.ZScanRequest{
+			Set:   []byte(set),
+			Limit: uint64(c.limit),
+			Desc:  desc,
+		}
+
+		if last != nil {
+			scanReq.SeekKey = last.Key
+			scanReq.SeekScore = last.Score
+			scanReq.SeekAtTx = last.AtTx
+		}
+
+		list, err := c.client.ZScan(ctx, scanReq)
+		for !c.checkSessionError(ctx, err) {
+			list, err = c.client.ZScan(ctx, scanReq)
+		}
+
+		if err != nil {
+			return fmt.Errorf("error scan set %v: %v", set, err)
+		}
+
+		for _, v := range list.Entries {
+			ok, err := f(ctx, v)
+			if err != nil {
+				return err
+			}
+
+			if !ok {
+				running = false
+				break
+			}
+		}
+
+		if !running || len(list.Entries) == 0 || len(list.Entries) < int(scanReq.Limit) {
+			break
+		}
+
+		last = list.Entries[len(list.Entries)-1]
+	}
+
+	return nil
+}
+
 func (c *Client) Health(ctx context.Context) (*schema.DatabaseHealthResponse, error) {
 	response, err := c.client.Health(ctx)
 	for !c.checkSessionError(ctx, err) {

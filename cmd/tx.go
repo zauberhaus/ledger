@@ -31,7 +31,7 @@ func addTxCmd(root *RootCommand) {
 
 	cmd := &cobra.Command{
 		Use:           "tx",
-		Short:         "List all transactions [holder id] [asset] [account id]",
+		Short:         "List all transactions <holder id> [asset] [account id]",
 		Args:          cobra.RangeArgs(0, 3),
 		SilenceErrors: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {

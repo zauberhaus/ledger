@@ -149,7 +149,7 @@ func (l *Ledger) CreateOperations(tx *Transaction) ([]interface{}, string, error
 	}
 
 	var order *schema.Op_Ref
-	var item *schema.Op_Ref
+	var item *schema.Op_ZAdd
 	if tx.Order != "" || tx.Item != "" {
 		order = &schema.Op_Ref{
 			Ref: &schema.ReferenceRequest{
@@ -159,20 +159,22 @@ func (l *Ledger) CreateOperations(tx *Transaction) ([]interface{}, string, error
 			},
 		}
 
-		item = &schema.Op_Ref{
-			Ref: &schema.ReferenceRequest{
-				ReferencedKey: kv.Kv.Key,
-				Key:           index.OrderItem.Key(tx.Holder, tx.Order, tx.Item, tx.ID),
-				BoundRef:      false,
+		item = &schema.Op_ZAdd{
+			ZAdd: &schema.ZAddRequest{
+				Key:      kv.Kv.Key,
+				Set:      index.OrderItem.Key(tx.Order),
+				Score:    float64(tx.Created.Local().UnixMilli()),
+				BoundRef: false,
 			},
 		}
 	}
 
-	transaction := &schema.Op_Ref{
-		Ref: &schema.ReferenceRequest{
-			ReferencedKey: kv.Kv.Key,
-			Key:           index.Transaction.Key(tx.Holder, tx.Asset, tx.Account, tx.ID),
-			BoundRef:      false,
+	transaction := &schema.Op_ZAdd{
+		ZAdd: &schema.ZAddRequest{
+			Key:      kv.Kv.Key,
+			Set:      index.Transaction.Key(tx.Account),
+			Score:    float64(tx.Created.Local().UnixMilli()),
+			BoundRef: false,
 		},
 	}
 
@@ -192,11 +194,12 @@ func (l *Ledger) CreateOperations(tx *Transaction) ([]interface{}, string, error
 		},
 	}
 
-	assetTx := &schema.Op_Ref{
-		Ref: &schema.ReferenceRequest{
-			ReferencedKey: kv.Kv.Key,
-			Key:           index.AssetTx.Key(tx.Asset, tx.Holder, tx.Account, tx.ID),
-			BoundRef:      false,
+	assetTx := &schema.Op_ZAdd{
+		ZAdd: &schema.ZAddRequest{
+			Key:      kv.Kv.Key,
+			Set:      index.AssetTx.Key(tx.Asset),
+			Score:    float64(tx.Created.Local().UnixMilli()),
+			BoundRef: false,
 		},
 	}
 
@@ -211,11 +214,11 @@ func (l *Ledger) CreateOperations(tx *Transaction) ([]interface{}, string, error
 	return []interface{}{
 		kv,
 		order,
-		item,
-		transaction,
 		holder,
 		account,
 		asset,
+		transaction,
 		assetTx,
+		item,
 	}, string(kv.Kv.Key), nil
 }

@@ -9,82 +9,14 @@ import (
 	"testing"
 	"time"
 
-	immudb "github.com/codenotary/immudb/pkg/client"
-	"github.com/codenotary/immudb/pkg/stream"
 	"github.com/ec-systems/core.ledger.service/pkg/client"
-	"github.com/ec-systems/core.ledger.service/pkg/config"
 	"github.com/ec-systems/core.ledger.service/pkg/ledger"
 	"github.com/ec-systems/core.ledger.service/pkg/ledger/index"
-	"github.com/ec-systems/core.ledger.service/pkg/logger"
 	"github.com/ec-systems/core.ledger.service/pkg/types"
 	"github.com/goombaio/namegenerator"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/exp/maps"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-)
-
-const (
-	CLIENT_OPTIONS_ADDRESS                  = "localhost"
-	CLIENT_OPTIONS_PORT                     = 3322
-	CLIENT_OPTIONS_USERNAME                 = "immudb"
-	CLIENT_OPTIONS_PASSWORD                 = "immudb"
-	CLIENT_OPTIONS_MTLS                     = false
-	CLIENT_OPTIONS_DATABASE                 = "test"
-	CLIENT_OPTIONS_MTLS_OPTIONS_CERTIFICATE = "../../certs/tls.crt"
-	CLIENT_OPTIONS_MTLS_OPTIONS_CLIENT_CAS  = "../../certs/ca.crt"
-	CLIENT_OPTIONS_MTLS_OPTIONS_PKEY        = "../../certs/tls.key"
-	CLIENT_OPTIONS_MTLS_OPTIONS_SERVERNAME  = "ledger-immudb-primary"
-	CLIENT_OPTIONS_TOKEN_FILE_NAME          = "./token"
-)
-
-var (
-	holder = randomName()
-
-	zero  = decimal.Zero
-	one   = decimal.NewFromInt(1)
-	two   = decimal.NewFromInt(2)
-	three = decimal.NewFromInt(3)
-
-	cfg = config.Config{
-		LogLevel:  logger.InfoLevel,
-		Assets:    types.DefaultAssetMap,
-		Statuses:  types.DefaultStatusMap,
-		BatchSize: 25,
-		Format:    types.Protobuf,
-		ClientOptions: &immudb.Options{
-			Dir:                "./test_data",
-			Address:            CLIENT_OPTIONS_ADDRESS,
-			Port:               CLIENT_OPTIONS_PORT,
-			Username:           CLIENT_OPTIONS_USERNAME,
-			Password:           CLIENT_OPTIONS_PASSWORD,
-			Database:           CLIENT_OPTIONS_DATABASE,
-			MTLs:               CLIENT_OPTIONS_MTLS,
-			Auth:               true,
-			HealthCheckRetries: 5,
-			HeartBeatFrequency: time.Minute * 1,
-			StreamChunkSize:    stream.DefaultChunkSize,
-			MaxRecvMsgSize:     4 * 1024 * 1024,
-			TokenFileName:      CLIENT_OPTIONS_TOKEN_FILE_NAME,
-			MTLsOptions: immudb.MTLsOptions{
-				Certificate: CLIENT_OPTIONS_MTLS_OPTIONS_CERTIFICATE,
-				ClientCAs:   CLIENT_OPTIONS_MTLS_OPTIONS_CLIENT_CAS,
-				Pkey:        CLIENT_OPTIONS_MTLS_OPTIONS_PKEY,
-				Servername:  CLIENT_OPTIONS_MTLS_OPTIONS_SERVERNAME,
-			},
-			Config:      "configs/immuclient.toml",
-			DialOptions: []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())},
-		},
-	}
-
-	assets = types.Assets{}
-
-	formats = []types.Format{
-		types.JSON,
-		types.Protobuf,
-		types.GOB,
-	}
 )
 
 func Test_Add(t *testing.T) {
@@ -739,8 +671,11 @@ func Test_Order(t *testing.T) {
 
 			amounts := randFloats(4)
 
+			order1 := randomName()
+			order2 := randomName()
+
 			tx1, ok := add(ctx, t, l, randomName(), asset1, amounts[0],
-				ledger.OrderID("order1"),
+				ledger.OrderID(order1),
 				ledger.OrderItemID("001"),
 			)
 
@@ -749,7 +684,7 @@ func Test_Order(t *testing.T) {
 			}
 
 			_, ok = add(ctx, t, l, tx1.Holder, asset2, amounts[1],
-				ledger.OrderID("order1"),
+				ledger.OrderID(order1),
 				ledger.OrderItemID("002"),
 			)
 
@@ -758,7 +693,7 @@ func Test_Order(t *testing.T) {
 			}
 
 			_, ok = add(ctx, t, l, tx1.Holder, asset2, amounts[2],
-				ledger.OrderID("order2"),
+				ledger.OrderID(order2),
 				ledger.OrderItemID("001"),
 			)
 
@@ -767,7 +702,7 @@ func Test_Order(t *testing.T) {
 			}
 
 			_, ok = add(ctx, t, l, tx1.Holder, asset1, amounts[3],
-				ledger.OrderID("order2"),
+				ledger.OrderID(order2),
 				ledger.OrderItemID("001"),
 			)
 
@@ -959,10 +894,11 @@ func Test_Asset_Balances(t *testing.T) {
 			sumAsset1 := decimal.Zero
 			amounts := randFloats(4)
 			holder = randomName()
+			order := randomName()
 
 			for i := 0; i < len(amounts)-1; i++ {
 				tx, ok := add(ctx, t, l, holder, asset1, amounts[i],
-					ledger.OrderID("order1"),
+					ledger.OrderID(order),
 					ledger.OrderItemID("001"),
 				)
 
@@ -974,7 +910,7 @@ func Test_Asset_Balances(t *testing.T) {
 			}
 
 			_, ok := add(ctx, t, l, holder, asset2, amounts[len(amounts)-1],
-				ledger.OrderID("order1"),
+				ledger.OrderID(order),
 				ledger.OrderItemID("002"),
 			)
 
@@ -1224,6 +1160,67 @@ func Test_Balance(t *testing.T) {
 		})
 	}
 
+}
+
+func Test_Transaction_Paging(t *testing.T) {
+	ctx := context.Background()
+	client, err := newClient(ctx)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	defer client.Close(ctx)
+
+	l := ledger.New(client,
+		ledger.SupportedAssets(cfg.Assets),
+	)
+
+	max := 47
+
+	asset := randomAsset(assets)
+	amounts := randFloats(max)
+	holder := randomName()
+
+	txs := map[uint64]*ledger.Transaction{}
+	var first *ledger.Transaction
+
+	for i := 0; i < max; i++ {
+		tx, err := l.Add(ctx, holder, asset, amounts[i],
+			ledger.OrderID("order 1"),
+			ledger.OrderItemID(fmt.Sprintf("%2d", i)),
+		)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		txs[tx.TX()] = tx
+
+		if first == nil {
+			first = tx
+		}
+	}
+
+	last := uint64(0)
+
+	err = l.Transactions(ctx, first.Holder, first.Asset, first.Account, func(ctx context.Context, tx *ledger.Transaction) (bool, error) {
+		if !assert.Contains(t, txs, tx.TX()) {
+			return false, fmt.Errorf("abc")
+		}
+
+		if !assert.True(t, tx.TX() > last) {
+			return false, fmt.Errorf("invalid transaction order")
+		}
+
+		last = tx.TX()
+
+		delete(txs, tx.TX())
+
+		return true, nil
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, txs, 0)
 }
 
 func randomName() string {

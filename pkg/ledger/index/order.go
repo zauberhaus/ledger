@@ -1,7 +1,5 @@
 package index
 
-import "github.com/ec-systems/core.ledger.service/pkg/types"
-
 var Order = OrderIndex{
 	index{
 		prefix: "OR",
@@ -12,7 +10,7 @@ var Order = OrderIndex{
 var OrderItem = OrderItemIndex{
 	index{
 		prefix: "OI",
-		max:    4,
+		max:    1,
 	},
 }
 
@@ -32,10 +30,10 @@ type OrderItemIndex struct {
 	index
 }
 
-func (a *OrderItemIndex) Key(holder string, order string, item string, id types.ID) []byte {
-	return []byte(a.scan(holder, order, item, id.HexString()))
+func (a *OrderItemIndex) Key(order string) []byte {
+	return []byte(a.scan(order))
 }
 
-func (a *OrderItemIndex) Scan(holder string, order string, item string) string {
-	return a.scan(a.strip(holder, order, item)...)
+func (a *OrderItemIndex) Scan(order string) string {
+	return a.scan(a.strip(order)...)
 }

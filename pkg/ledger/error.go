@@ -18,6 +18,6 @@ func (e Error) Error() string {
 	return string(e.msg)
 }
 
-func (e Error) Is(code int) bool {
+func (e Error) IsError(code int) bool {
 	return e.code == code
 }

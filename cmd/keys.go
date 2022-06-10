@@ -71,11 +71,19 @@ func addKeysCmd(root *RootCommand) {
 			}
 
 			table := tablewriter.NewWriter(os.Stdout)
-			table.SetHeader([]string{"Key", "Hash"})
+			table.SetHeader([]string{"Type", "ID", "Hash"})
 
 			for i, e := range tx.Entries {
 				if e.Key[0] != 0 {
-					table.Append([]string{fmt.Sprintf("%v", i), string(e.Key)})
+					if i == 0 {
+						table.Append([]string{"Key", fmt.Sprintf("%v", i), string(e.Key)})
+					} else {
+						table.Append([]string{"Ref", fmt.Sprintf("%v", i), string(e.Key)})
+					}
+				} else {
+					l := uint8(e.Key[7])
+					key := string(e.Key[8 : 8+l])
+					table.Append([]string{"Set", fmt.Sprintf("%v", i), key})
 				}
 			}
 

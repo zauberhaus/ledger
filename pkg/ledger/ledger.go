@@ -2,6 +2,7 @@ package ledger
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"hash/crc64"
@@ -143,71 +144,123 @@ func (l *Ledger) Holders(ctx context.Context, f func(holder string, account type
 
 func (l *Ledger) Balance(ctx context.Context, holder string, asset types.Asset, account types.Account, status types.Status) (map[types.Asset]*types.Balance, error) {
 	assets := map[types.Asset]*types.Balance{}
+	var accounts []types.Account
 
 	if holder == "" {
 		return nil, NewError(BadRequestError, "balance: holder is mandatory")
 	}
 
-	err := l.ForEach(ctx, index.Transaction.Scan(holder, asset, account), false, func(ctx context.Context, tx *Transaction) (bool, error) {
-
-		if holder == tx.Holder {
-			balance, ok := assets[tx.Asset]
-			if !ok {
-				balance = types.NewBalance(status)
-				assets[tx.Asset] = balance
-			}
-
-			balance.Add(tx.Account, tx.Amount, tx.Status)
-		} else {
-			logger.Errorf("balance: unexpected holder %v!=%v in %v", holder, tx.Holder, tx.tx)
+	if account.Empty() {
+		acc, err := l.Accounts(ctx, holder, asset)
+		if err != nil {
+			return nil, err
 		}
 
-		return true, nil
-	})
+		accounts = acc
+	} else {
+		accounts = []types.Account{account}
+	}
 
-	if err != nil {
-		return nil, err
+	for _, a := range accounts {
+		err := l.ForEachInSet(ctx, index.Transaction.Scan(a), false, func(ctx context.Context, tx *Transaction) (bool, error) {
+
+			if holder == tx.Holder {
+				balance, ok := assets[tx.Asset]
+				if !ok {
+					balance = types.NewBalance(status)
+					assets[tx.Asset] = balance
+				}
+
+				balance.Add(tx.Account, tx.Amount, tx.Status)
+			} else {
+				return false, fmt.Errorf("balance: unexpected holder %v!=%v in %v", holder, tx.Holder, tx.tx)
+			}
+
+			return true, nil
+		})
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return assets, nil
 }
 
 func (l *Ledger) AssetBalance(ctx context.Context, asset types.Asset) (map[types.Asset]decimal.Decimal, error) {
-	assets := map[types.Asset]decimal.Decimal{}
+	var assets []types.Asset
 
-	err := l.ForEach(ctx, index.AssetTx.Asset(asset), false, func(ctx context.Context, tx *Transaction) (bool, error) {
-		balance, ok := assets[tx.Asset]
-		if !ok {
-			balance = decimal.Zero
+	if asset == types.AllAssets {
+		tmp, err := l.Assets(ctx)
+		if err != nil {
+			return nil, err
 		}
-
-		assets[tx.Asset] = balance.Add(tx.Amount)
-		return true, nil
-	})
-
-	if err != nil {
-		return nil, NewError(InternalError, "failed to load list of assets: %v", err)
+		assets = tmp
+	} else {
+		assets = []types.Asset{asset}
 	}
 
-	return assets, nil
+	balances := map[types.Asset]decimal.Decimal{}
+
+	for _, a := range assets {
+		err := l.ForEachInSet(ctx, string(index.AssetTx.Key(a)), false, func(ctx context.Context, tx *Transaction) (bool, error) {
+			balance, ok := balances[tx.Asset]
+			if !ok {
+				balance = decimal.Zero
+			}
+
+			balances[tx.Asset] = balance.Add(tx.Amount)
+			return true, nil
+		})
+
+		if err != nil {
+			return nil, NewError(InternalError, "failed to load list of assets: %v", err)
+		}
+	}
+
+	return balances, nil
 }
 
 func (l *Ledger) Transactions(ctx context.Context, holder string, asset types.Asset, account types.Account, f func(context.Context, *Transaction) (bool, error)) error {
-	return l.ForEach(ctx, index.Transaction.Scan(holder, asset, account), false, func(ctx context.Context, tx *Transaction) (bool, error) {
-		if holder != "" && holder != tx.Holder {
-			return false, NewError(BadRequestError, "invalid holder %v in tx %v (%v)", tx.Holder, tx.ID, holder)
+	if holder == "" {
+		return NewError(BadRequestError, "holder is mandatory")
+	}
+
+	var accounts []types.Account
+	if account.Empty() {
+		acc, err := l.Accounts(ctx, holder, asset)
+		if err != nil {
+			return err
 		}
 
-		if asset != types.AllAssets && asset != tx.Asset {
-			return false, NewError(BadRequestError, "invalid asset %v in tx %v (%v)", tx.Asset, tx.ID, asset)
-		}
+		accounts = acc
+	} else {
+		accounts = []types.Account{account}
+	}
 
-		if account != types.AllAccounts && account != tx.Account {
-			return false, NewError(BadRequestError, "invalid account %v in tx %v (%v)", tx.Account, tx.ID, account)
-		}
+	for _, a := range accounts {
+		err := l.ForEachInSet(ctx, index.Transaction.Scan(a), false, func(ctx context.Context, tx *Transaction) (bool, error) {
+			if holder != "" && holder != tx.Holder {
+				return false, NewError(BadRequestError, "invalid holder %v in tx %v (%v)", tx.Holder, tx.ID, holder)
+			}
 
-		return f(ctx, tx)
-	})
+			if asset != types.AllAssets && asset != tx.Asset {
+				return false, NewError(BadRequestError, "invalid asset %v in tx %v (%v)", tx.Asset, tx.ID, asset)
+			}
+
+			if account != types.AllAccounts && account != tx.Account {
+				return false, NewError(BadRequestError, "invalid account %v in tx %v (%v)", tx.Account, tx.ID, account)
+			}
+
+			return f(ctx, tx)
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (l *Ledger) Orders(ctx context.Context, holder string, f func(context.Context, *Transaction) (bool, error)) error {
@@ -229,7 +282,7 @@ func (l *Ledger) OrderItems(ctx context.Context, holder string, order string, it
 		return NewError(BadRequestError, "holder is mandatory")
 	}
 
-	return l.ForEach(ctx, index.OrderItem.Scan(holder, order, item), false, func(ctx context.Context, tx *Transaction) (bool, error) {
+	return l.ForEachInSet(ctx, index.OrderItem.Scan(order), false, func(ctx context.Context, tx *Transaction) (bool, error) {
 		if holder != "" && holder != tx.Holder {
 			return false, NewError(BadRequestError, "invalid holder %v in tx %v (%v)", tx.Holder, tx.ID, holder)
 		}
@@ -487,8 +540,31 @@ func (l *Ledger) ForEach(ctx context.Context, prefix string, desc bool, f func(c
 	})
 }
 
+func (l *Ledger) ForEachInSet(ctx context.Context, prefix string, desc bool, f func(context.Context, *Transaction) (bool, error)) error {
+	return l.client.ScanSet(ctx, prefix, false, func(ctx context.Context, e *schema.ZEntry) (bool, error) {
+		tx := &Transaction{}
+		err := tx.Parse(e.Entry)
+		if err != nil {
+			return true, NewError(InternalError, "failed to parse the transaction (%v): %v", err, string(e.Entry.Value))
+		}
+
+		return f(ctx, tx)
+	})
+}
+
 func (l *Ledger) NewID() (types.ID, error) {
-	return types.NewRandomID()
+	token := make([]byte, 16)
+	n, err := rand.Read(token)
+
+	if err != nil {
+		return types.ZeroID, err
+	}
+
+	if n != 16 {
+		return types.ZeroID, fmt.Errorf("can't generate transaction id")
+	}
+
+	return types.NewID(token), nil
 }
 
 func (l *Ledger) NewAccount(ctx context.Context, holder string, asset types.Asset) (types.Account, error) {
