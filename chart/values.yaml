@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: gcr.io/astute-synapse-332322/core-ledger-service
+  repository: gcr.io/astute-synapse-332322/core-ledger-server
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
