@@ -1,7 +1,7 @@
 #!/bin/sh
 
 TAG=`git describe --tags --always --dirty | sed -e 's/^v//'`
-IMAGE=gcr.io/astute-synapse-332322/core-ledger-service
+IMAGE=gcr.io/astute-synapse-332322/core-ledger-server
 PLATFORMS=linux/amd64,linux/arm64
 
 echo "Build tag $TAG"
