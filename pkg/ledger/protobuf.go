@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/ec-systems/core.ledger.service/pkg/ledger/protobuf"
-	"github.com/ec-systems/core.ledger.service/pkg/types"
+	"github.com/ec-systems/core.ledger.server/pkg/ledger/protobuf"
+	"github.com/ec-systems/core.ledger.server/pkg/types"
 
 	"github.com/shopspring/decimal"
 	"google.golang.org/protobuf/proto"

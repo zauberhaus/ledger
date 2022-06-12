@@ -11,7 +11,7 @@ services:
       - ledger-network
     ports:
       - 3322:3322
-  core.ledger.service:
+  core.ledger.server:
     build: .
     container_name: ledger
     environment:

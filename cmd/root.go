@@ -8,10 +8,10 @@ import (
 	"unsafe"
 
 	"github.com/creasty/defaults"
-	"github.com/ec-systems/core.ledger.service/docs"
-	"github.com/ec-systems/core.ledger.service/pkg/config"
-	"github.com/ec-systems/core.ledger.service/pkg/logger"
-	"github.com/ec-systems/core.ledger.service/pkg/types"
+	"github.com/ec-systems/core.ledger.server/docs"
+	"github.com/ec-systems/core.ledger.server/pkg/config"
+	"github.com/ec-systems/core.ledger.server/pkg/logger"
+	"github.com/ec-systems/core.ledger.server/pkg/types"
 
 	"github.com/fsnotify/fsnotify"
 	homedir "github.com/mitchellh/go-homedir"
@@ -31,7 +31,7 @@ func GetRootCmd(version *Version) *RootCommand {
 	var rootCmd *RootCommand
 
 	rootCmd = &RootCommand{
-		Command: cobra.Command{Use: "core.ledger.service",
+		Command: cobra.Command{Use: "core.ledger.server",
 			Short:         "EC core ledger service",
 			SilenceErrors: true,
 			PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

@@ -4,7 +4,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/ec-systems/core.ledger.service/pkg/logger"
+	"github.com/ec-systems/core.ledger.server/pkg/logger"
 	"github.com/swaggo/swag"
 	"github.com/swaggo/swag/gen"
 )

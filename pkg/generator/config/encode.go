@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/ec-systems/core.ledger.service/pkg/logger"
+	"github.com/ec-systems/core.ledger.server/pkg/logger"
 	"github.com/pelletier/go-toml"
 	"gopkg.in/yaml.v3"
 )

@@ -9,10 +9,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ec-systems/core.ledger.service/cmd"
-	"github.com/ec-systems/core.ledger.service/pkg/config"
-	"github.com/ec-systems/core.ledger.service/pkg/logger"
-	"github.com/ec-systems/core.ledger.service/pkg/types"
+	"github.com/ec-systems/core.ledger.server/cmd"
+	"github.com/ec-systems/core.ledger.server/pkg/config"
+	"github.com/ec-systems/core.ledger.server/pkg/logger"
+	"github.com/ec-systems/core.ledger.server/pkg/types"
 )
 
 var (

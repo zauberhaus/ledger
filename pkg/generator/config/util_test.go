@@ -3,8 +3,8 @@ package main_test
 import (
 	"testing"
 
-	"github.com/ec-systems/core.ledger.service/cmd"
-	generator "github.com/ec-systems/core.ledger.service/pkg/generator/config"
+	"github.com/ec-systems/core.ledger.server/cmd"
+	generator "github.com/ec-systems/core.ledger.server/pkg/generator/config"
 	"github.com/stretchr/testify/assert"
 )
 

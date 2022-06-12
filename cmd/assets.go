@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ec-systems/core.ledger.service/pkg/client"
-	"github.com/ec-systems/core.ledger.service/pkg/config"
-	"github.com/ec-systems/core.ledger.service/pkg/ledger"
-	"github.com/ec-systems/core.ledger.service/pkg/types"
+	"github.com/ec-systems/core.ledger.server/pkg/client"
+	"github.com/ec-systems/core.ledger.server/pkg/config"
+	"github.com/ec-systems/core.ledger.server/pkg/ledger"
+	"github.com/ec-systems/core.ledger.server/pkg/types"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )

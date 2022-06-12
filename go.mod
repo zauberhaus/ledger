@@ -1,4 +1,4 @@
-module github.com/ec-systems/core.ledger.service
+module github.com/ec-systems/core.ledger.server
 
 go 1.18
 

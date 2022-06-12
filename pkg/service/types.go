@@ -3,7 +3,7 @@ package service
 import (
 	"time"
 
-	"github.com/ec-systems/core.ledger.service/pkg/ledger"
+	"github.com/ec-systems/core.ledger.server/pkg/ledger"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )

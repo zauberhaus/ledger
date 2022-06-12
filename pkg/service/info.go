@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/ec-systems/core.ledger.service/pkg/ledger"
+	"github.com/ec-systems/core.ledger.server/pkg/ledger"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 )

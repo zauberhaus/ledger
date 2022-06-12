@@ -3,8 +3,8 @@ package service
 import (
 	"net/http"
 
-	"github.com/ec-systems/core.ledger.service/pkg/config"
-	"github.com/ec-systems/core.ledger.service/pkg/metrics"
+	"github.com/ec-systems/core.ledger.server/pkg/config"
+	"github.com/ec-systems/core.ledger.server/pkg/metrics"
 )
 
 type ServiceOption interface {

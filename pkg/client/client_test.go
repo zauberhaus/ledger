@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/codenotary/immudb/pkg/api/schema"
-	"github.com/ec-systems/core.ledger.service/pkg/client"
+	"github.com/ec-systems/core.ledger.server/pkg/client"
 	"github.com/stretchr/testify/assert"
 )
 

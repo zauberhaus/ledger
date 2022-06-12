@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/codenotary/immudb/pkg/api/schema"
-	"github.com/ec-systems/core.ledger.service/pkg/types"
+	"github.com/ec-systems/core.ledger.server/pkg/types"
 	"github.com/shopspring/decimal"
 )
 

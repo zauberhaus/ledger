@@ -1,11 +1,11 @@
-//go:generate go run github.com/ec-systems/core.ledger.service/pkg/generator/config/
+//go:generate go run github.com/ec-systems/core.ledger.server/pkg/generator/config/
 package config
 
 import (
 	"regexp"
 
-	"github.com/ec-systems/core.ledger.service/pkg/logger"
-	"github.com/ec-systems/core.ledger.service/pkg/types"
+	"github.com/ec-systems/core.ledger.server/pkg/logger"
+	"github.com/ec-systems/core.ledger.server/pkg/types"
 	"gopkg.in/yaml.v3"
 
 	immudb "github.com/codenotary/immudb/pkg/client"
