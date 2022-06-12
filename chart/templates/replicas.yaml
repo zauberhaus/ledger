@@ -111,9 +111,15 @@ spec:
             - name: CLIENT_OPTIONS_PORT
               value: {{ $.Values.immudb.port | quote }}
             - name: CLIENT_OPTIONS_USERNAME
-              value: {{ $.Values.immudb.user.name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "chart.fullname" . }}
+                  key: IMMUDB_USER
             - name: CLIENT_OPTIONS_PASSWORD
-              value:  {{ $.Values.immudb.user.password }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "chart.fullname" . }}
+                  key: IMMUDB_PASSWORD
             - name: CLIENT_OPTIONS_MTLS
               value: {{ $.Values.immudb.mtls.enabled | quote }}
             - name: CLIENT_OPTIONS_DATABASE
