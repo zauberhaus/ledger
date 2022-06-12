@@ -1,16 +1,16 @@
 package service
 
-//go:generate go run github.com/ec-systems/core.ledger.service/pkg/generator/swagger/
+//go:generate go run github.com/ec-systems/core.ledger.server/pkg/generator/swagger/
 
 import (
 	"context"
 
-	"github.com/ec-systems/core.ledger.service/pkg/config"
-	"github.com/ec-systems/core.ledger.service/pkg/ledger"
-	"github.com/ec-systems/core.ledger.service/pkg/logger"
+	"github.com/ec-systems/core.ledger.server/pkg/config"
+	"github.com/ec-systems/core.ledger.server/pkg/ledger"
+	"github.com/ec-systems/core.ledger.server/pkg/logger"
 	"github.com/go-chi/chi/v5/middleware"
 
-	_ "github.com/ec-systems/core.ledger.service/docs"
+	_ "github.com/ec-systems/core.ledger.server/docs"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 

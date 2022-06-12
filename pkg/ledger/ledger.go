@@ -12,10 +12,10 @@ import (
 	"github.com/codenotary/immudb/pkg/api/schema"
 	"github.com/shopspring/decimal"
 
-	"github.com/ec-systems/core.ledger.service/pkg/client"
-	"github.com/ec-systems/core.ledger.service/pkg/ledger/index"
-	"github.com/ec-systems/core.ledger.service/pkg/logger"
-	"github.com/ec-systems/core.ledger.service/pkg/types"
+	"github.com/ec-systems/core.ledger.server/pkg/client"
+	"github.com/ec-systems/core.ledger.server/pkg/ledger/index"
+	"github.com/ec-systems/core.ledger.server/pkg/logger"
+	"github.com/ec-systems/core.ledger.server/pkg/types"
 )
 
 const (

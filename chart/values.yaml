@@ -1,0 +1,186 @@
+# Default values for chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: gcr.io/astute-synapse-332322/core-ledger-server
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+psp:
+  enabled: true
+
+podSecurityContext:
+  fsGroup: 65535
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  runAsNonRoot: true
+  runAsUser: 65535
+
+tls:
+  enabled: true
+  ca:
+    cluster: true
+    duration: 17520h
+    commonName:
+    issuer:
+    ipAddresses:
+    dnsNames:
+    privateKey:
+      algorithm: RSA
+      size: 4096
+      rotationPolicy: Always
+    subject:
+      organizationalUnits:
+        - immudb-ca
+      organizations:
+        - easycrypto.ai
+
+certs:
+  server:
+    duration: 2160h
+    ipAddresses:
+      - 127.0.0.1
+    dnsNames:
+      - localhost
+  client:
+    duration: 2160h
+    generated: true
+    keystore:
+      pkcs12:
+        enabled: true
+        password: "12345678"
+    ipAddresses:
+      - 127.0.0.1
+    dnsNames:
+      - localhost
+  immudb:
+    duration: 2160h
+    generated: true
+    secret: ""
+    issuer:
+      group: cert-manager.io
+      kind: ClusterIssuer
+      name: ec-immudb-issuer
+    ipAddresses:
+      - 127.0.0.1
+    dnsNames:
+      - localhost
+
+ledger:
+  logLevel: info
+  batchSize: 100
+  accessLogger: true
+  production: false
+  serverName: ""
+
+  metrics:
+    enabled: true
+    port: 9094
+
+  mtls:
+    enabled: true
+    certFile: /certs/server/tls.crt
+    keyFile: /certs/server/tls.key
+    caFile: /certs/server/ca.crt
+
+immudb:
+  address: ec-immudb-primary.imdb.svc.cluster.local
+  port: 3322
+  dbName: defaultdb
+  user:
+    name: immudb
+    password: immudb
+  mtls:
+    enabled: true
+    serverName: ec-immudb-primary
+    certFile: /certs/immudb/tls.crt
+    keyFile: /certs/immudb/tls.key
+    caFile: /certs/immudb/ca.crt
+
+cert-manager:
+  install: false
+  global:
+    podSecurityPolicy:
+      enabled: true
+  installCRDs: true
+
+service:
+  type: ClusterIP
+  port:
+
+resources:
+  {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+reloader:
+  enabled: true
+  reloader:
+    watchGlobally: false
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+replica:
+  enabled: false
+  image:
+    repository: gcr.io/astute-synapse-332322/immudb
+    pullPolicy: IfNotPresent
+    tag: ""
+    hash: ""
+  session:
+    maxAgeTime: 0
+    maxInactivityTime: 15m
+    guardCheckInterval: 5m
+    timeout: 15m
+  resources: {}
+  storage:
+    size: 2Gi
+  podAnnotations: {}
+  podSecurityContext:
+    allowPrivilegeEscalation: false
+  securityContext:
+    runAsUser: 3322
+    runAsGroup: 3322
+    fsGroup: 3322
+    runAsNonRoot: true

@@ -10,7 +10,7 @@ RUN ./build.sh
 
 FROM scratch
 
-COPY --from=builder /dist/core.ledger.service /core.ledger.service
+COPY --from=builder /dist/core.ledger.server /core.ledger.server
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 # ENV_START
@@ -68,4 +68,4 @@ ENV SERVICE_MTLS_SERVERNAME=
 # ENV_END
 
 USER 65535
-ENTRYPOINT [ "/core.ledger.service", "service" ]
+ENTRYPOINT [ "/core.ledger.server", "service" ]

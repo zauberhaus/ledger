@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ec-systems/core.ledger.service/pkg/logger"
+	"github.com/ec-systems/core.ledger.server/pkg/logger"
 	"golang.org/x/exp/maps"
 	"gopkg.in/yaml.v3"
 )

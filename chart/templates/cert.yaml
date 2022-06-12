@@ -1,0 +1,88 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "chart.fullname" . }}-server
+spec:
+  duration: {{ .Values.certs.server.duration }}
+  commonName: "{{- include "chart.fullname" . }}-server"
+  {{- with .Values.certs.server.ipAddresses }}
+  ipAddresses:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}  
+  dnsNames:
+    - "{{- include "chart.fullname" . }}"
+  {{- with .Values.certs.server.dnsNames }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  issuerRef:
+    group: cert-manager.io
+    kind: {{ if $.Values.tls.ca.cluster -}}ClusterIssuer{{- else -}}Issuer{{- end }}
+    name: {{ include "chart.fullname" . }}-issuer
+  secretName: {{ include "chart.fullname" . }}-server-tls
+  usages:
+  - digital signature
+  - key encipherment
+  - server auth
+  - client auth
+---
+{{- if .Values.certs.client.generated }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "chart.fullname" . }}-client
+spec:
+  duration: {{ .Values.certs.client.duration }}
+  commonName: "{{- include "chart.fullname" . }}-client"
+  {{- with .Values.certs.client.ipAddresses }}
+  ipAddresses:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}  
+  dnsNames:
+    - "{{- include "chart.fullname" . }}"
+  {{- with .Values.certs.client.dnsNames }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  issuerRef:
+    group: cert-manager.io
+    kind: {{ if $.Values.tls.ca.cluster -}}ClusterIssuer{{- else -}}Issuer{{- end }}
+    name: {{ include "chart.fullname" . }}-issuer
+  secretName: {{ include "chart.fullname" . }}-client-tls
+  usages:
+  - digital signature
+  - key encipherment
+  - server auth
+  - client auth
+{{- if $.Values.certs.client.keystore.pkcs12.enabled }}  
+  keystores:
+    pkcs12:
+      create: true
+      passwordSecretRef:
+        name: {{ include "chart.fullname" . }}
+        key: PKCS12_PASSWORD
+{{- end }}        
+---
+{{- end }}
+{{- if .Values.certs.immudb.generated }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "chart.fullname" . }}-immudb-client
+spec:
+  duration: {{ .Values.certs.immudb.duration }}
+  commonName: {{ include "chart.fullname" . }}-immudb-client
+  issuerRef:
+  {{- with .Values.certs.immudb.issuer }}
+    {{- toYaml . | nindent 4 }}
+  {{- else }}
+    group: cert-manager.io
+    kind: {{ if $.Values.tls.ca.cluster -}}ClusterIssuer{{- else -}}Issuer{{- end }}
+    name: {{ include "chart.fullname" . }}-issuer
+  {{- end }}
+  secretName: {{ include "chart.fullname" . }}-immudb-client-tls
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth
+    - client auth
+{{- end }}

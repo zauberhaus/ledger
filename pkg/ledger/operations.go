@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/codenotary/immudb/pkg/api/schema"
-	"github.com/ec-systems/core.ledger.service/pkg/ledger/index"
-	"github.com/ec-systems/core.ledger.service/pkg/types"
+	"github.com/ec-systems/core.ledger.server/pkg/ledger/index"
+	"github.com/ec-systems/core.ledger.server/pkg/types"
 )
 
 func (l *Ledger) CancelOperations(tx *Transaction) ([]interface{}, *Transaction, error) {

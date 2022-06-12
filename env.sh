@@ -20,13 +20,13 @@ else
     if [ ! -d ./certs ] ; then
         echo "Get client certificates ${RELEASE}-immudb-client-tls"
 
-        mkdir -p ./certs
+        mkdir -p ./certs/immudb
 
         SECRET=$(kubectl get secret -n $NS ${RELEASE}-immudb-client-tls -o json)
 
-        echo $SECRET | jq -r ".data.\"tls.crt\"" | base64 -d > certs/tls.crt
-        echo $SECRET | jq -r ".data.\"tls.key\"" | base64 -d > certs/tls.key
-        echo $SECRET | jq -r ".data.\"ca.crt\"" | base64 -d > certs/ca.crt    
+        echo $SECRET | jq -r ".data.\"tls.crt\"" | base64 -d > certs/immudb/tls.crt
+        echo $SECRET | jq -r ".data.\"tls.key\"" | base64 -d > certs/immudb/tls.key
+        echo $SECRET | jq -r ".data.\"ca.crt\"" | base64 -d > certs/immudb/ca.crt    
     fi
 
     export CLIENT_OPTIONS_ADDRESS=${ADDRESS}
@@ -35,8 +35,8 @@ else
     export CLIENT_OPTIONS_PASSWORD=${PASSWORD}
     export CLIENT_OPTIONS_MTLS=true
     export CLIENT_OPTIONS_DATABASE=${DB}
-    export CLIENT_OPTIONS_MTLS_OPTIONS_CERTIFICATE=./certs/tls.crt
-    export CLIENT_OPTIONS_MTLS_OPTIONS_CLIENT_CAS=./certs/ca.crt
-    export CLIENT_OPTIONS_MTLS_OPTIONS_PKEY=./certs/tls.key
+    export CLIENT_OPTIONS_MTLS_OPTIONS_CERTIFICATE=$(pwd)/certs/immudb/tls.crt
+    export CLIENT_OPTIONS_MTLS_OPTIONS_CLIENT_CAS=$(pwd)/certs/immudb/ca.crt
+    export CLIENT_OPTIONS_MTLS_OPTIONS_PKEY=$(pwd)/certs/immudb/tls.key
     export CLIENT_OPTIONS_MTLS_OPTIONS_SERVERNAME=${RELEASE}-immudb-primary
 fi    

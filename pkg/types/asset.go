@@ -1,4 +1,4 @@
-//go:generate go run github.com/ec-systems/core.ledger.service/pkg/generator/assets/
+//go:generate go run github.com/ec-systems/core.ledger.server/pkg/generator/assets/
 
 package types
 

@@ -1,9 +1,11 @@
-//go:generate go run github.com/ec-systems/core.ledger.service/pkg/generator/config/
+//go:generate go run github.com/ec-systems/core.ledger.server/pkg/generator/config/
 package config
 
 import (
-	"github.com/ec-systems/core.ledger.service/pkg/logger"
-	"github.com/ec-systems/core.ledger.service/pkg/types"
+	"regexp"
+
+	"github.com/ec-systems/core.ledger.server/pkg/logger"
+	"github.com/ec-systems/core.ledger.server/pkg/types"
 	"gopkg.in/yaml.v3"
 
 	immudb "github.com/codenotary/immudb/pkg/client"
@@ -49,10 +51,14 @@ type ServiceConfig struct {
 type MTLsOptions immudb.MTLsOptions
 
 func (c *Config) String() string {
+
 	data, err := yaml.Marshal(c)
 	if err != nil {
 		return err.Error()
-	} else {
-		return string(data)
 	}
+
+	regex := regexp.MustCompile(`password:\s{0,1}.+`)
+	data = regex.ReplaceAll(data, []byte("password: *****"))
+	return string(data)
+
 }

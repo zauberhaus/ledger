@@ -1,6 +1,6 @@
 package index
 
-import "github.com/ec-systems/core.ledger.service/pkg/types"
+import "github.com/ec-systems/core.ledger.server/pkg/types"
 
 var Holder = HolderIndex{
 	index{
