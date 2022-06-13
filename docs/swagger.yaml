@@ -23,6 +23,13 @@ definitions:
       Symbol:
         type: string
     type: object
+  service.AssetBalance:
+    properties:
+      Asset:
+        type: string
+      Sum:
+        type: number
+    type: object
   service.Balance:
     properties:
       Accounts:
@@ -228,6 +235,10 @@ paths:
           description: ""
         "404":
           description: ""
+        "406":
+          description: Not Acceptable
+          schema:
+            type: a
         "500":
           description: ""
       summary: Revert a Transaction
@@ -310,6 +321,10 @@ paths:
             $ref: '#/definitions/service.Transaction'
         "404":
           description: ""
+        "406":
+          description: Not Acceptable
+          schema:
+            type: a
         "500":
           description: ""
       summary: Change the Transaction Status
@@ -357,6 +372,10 @@ paths:
           description: ""
         "404":
           description: ""
+        "406":
+          description: Not Acceptable
+          schema:
+            type: a
         "500":
           description: ""
       summary: Remove Assets
@@ -403,11 +422,65 @@ paths:
           description: ""
         "404":
           description: ""
+        "406":
+          description: Not Acceptable
+          schema:
+            type: a
         "500":
           description: ""
       summary: Add Assets
       tags:
       - Accounts
+  /assets/:
+    get:
+      description: Show alle assets with a transaction
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/service.Asset'
+            type: array
+        "400":
+          description: ""
+        "404":
+          description: ""
+        "500":
+          description: ""
+      summary: Show list of Assets
+      tags:
+      - Assets
+  /assets/{asset}:
+    get:
+      description: Show the balance of an Asset
+      parameters:
+      - description: Asset Symbol
+        in: path
+        name: asset
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/service.AssetBalance'
+        "400":
+          description: ""
+        "404":
+          description: ""
+        "406":
+          description: Not Acceptable
+          schema:
+            type: string
+        "500":
+          description: ""
+      summary: Asset Balance
+      tags:
+      - Assets
   /health:
     get:
       description: Show health status

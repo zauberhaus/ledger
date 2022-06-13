@@ -290,6 +290,12 @@ const docTemplate = `{
                     "404": {
                         "description": ""
                     },
+                    "406": {
+                        "description": "Not Acceptable",
+                        "schema": {
+                            "type": "a"
+                        }
+                    },
                     "500": {
                         "description": ""
                     }
@@ -352,6 +358,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": ""
+                    },
+                    "406": {
+                        "description": "Not Acceptable",
+                        "schema": {
+                            "type": "a"
+                        }
                     },
                     "500": {
                         "description": ""
@@ -423,6 +435,12 @@ const docTemplate = `{
                     "404": {
                         "description": ""
                     },
+                    "406": {
+                        "description": "Not Acceptable",
+                        "schema": {
+                            "type": "a"
+                        }
+                    },
                     "500": {
                         "description": ""
                     }
@@ -490,6 +508,88 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": ""
+                    },
+                    "406": {
+                        "description": "Not Acceptable",
+                        "schema": {
+                            "type": "a"
+                        }
+                    },
+                    "500": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/assets/": {
+            "get": {
+                "description": "Show alle assets with a transaction",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Assets"
+                ],
+                "summary": "Show list of Assets",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/service.Asset"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": ""
+                    },
+                    "404": {
+                        "description": ""
+                    },
+                    "500": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/assets/{asset}": {
+            "get": {
+                "description": "Show the balance of an Asset",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Assets"
+                ],
+                "summary": "Asset Balance",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset Symbol",
+                        "name": "asset",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/service.AssetBalance"
+                        }
+                    },
+                    "400": {
+                        "description": ""
+                    },
+                    "404": {
+                        "description": ""
+                    },
+                    "406": {
+                        "description": "Not Acceptable",
+                        "schema": {
+                            "type": "string"
+                        }
                     },
                     "500": {
                         "description": ""
@@ -601,6 +701,17 @@ const docTemplate = `{
                 },
                 "Symbol": {
                     "type": "string"
+                }
+            }
+        },
+        "service.AssetBalance": {
+            "type": "object",
+            "properties": {
+                "Asset": {
+                    "type": "string"
+                },
+                "Sum": {
+                    "type": "number"
                 }
             }
         },

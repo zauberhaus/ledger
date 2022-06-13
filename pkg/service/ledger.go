@@ -59,6 +59,7 @@ func NewLedgerService(ctx context.Context, ledger *ledger.Ledger, cfg *config.Se
 		Port(cfg.Port),
 		MTls((*config.MTLsOptions)(cfg.MTls)),
 		Mount("/accounts", NewAccountsService(ledger)),
+		Mount("/assets", NewAssetsService(ledger)),
 		Mount("/info", NewInfoService(ledger)),
 		Method("GET", NewHealthService(ledger)),
 		MetricsMethod("GET", NewHealthService(ledger)),

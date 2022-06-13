@@ -33,6 +33,7 @@ service:
   port: 8888
   production: false
   accesslogger: true
+  readonly: false
   metrics: 9094
   servername: ""
 assets:

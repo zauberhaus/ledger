@@ -205,6 +205,7 @@ LogLevel = "info"
   Metrics = 9094
   Port = 8888
   Production = false
+  ReadOnly = false
   Servername = ""
 
 [Statuses]

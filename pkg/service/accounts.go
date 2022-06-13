@@ -61,12 +61,12 @@ func NewAccountsService(ledger *ledger.Ledger) chi.Router {
 // @Success      200  {object}  service.Transaction
 // @Failure      400
 // @Failure      404
+// @Failure      406
 // @Failure      500
 // @Router       /accounts/{holder}/{asset}/{amount} [put]
 func (a *AccountsService) add(w http.ResponseWriter, r *http.Request) {
 	asset, err := a.asset(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -77,14 +77,12 @@ func (a *AccountsService) add(w http.ResponseWriter, r *http.Request) {
 	}
 
 	amount, err := a.amount(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
 	account, err := a.account(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -93,8 +91,7 @@ func (a *AccountsService) add(w http.ResponseWriter, r *http.Request) {
 	ref := a.reference(w, r)
 
 	tx, err := a.ledger.Add(r.Context(), holder, asset, amount, account, order, item, ref)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if isError(w, err) {
 		return
 	}
 
@@ -116,12 +113,12 @@ func (a *AccountsService) add(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  service.Transaction
 // @Failure      400
 // @Failure      404
+// @Failure      406
 // @Failure      500
 // @Router       /accounts/{holder}/{asset}/{amount} [delete]
 func (a *AccountsService) remove(w http.ResponseWriter, r *http.Request) {
 	asset, err := a.asset(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -132,14 +129,12 @@ func (a *AccountsService) remove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	amount, err := a.amount(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
 	account, err := a.account(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -148,8 +143,7 @@ func (a *AccountsService) remove(w http.ResponseWriter, r *http.Request) {
 	ref := a.reference(w, r)
 
 	tx, err := a.ledger.Remove(r.Context(), holder, asset, amount, account, order, item, ref)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if isError(w, err) {
 		return
 	}
 
@@ -169,6 +163,7 @@ func (a *AccountsService) remove(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  service.Transaction
 // @Failure      400
 // @Failure      404
+// @Failure      406
 // @Failure      500
 // @Router       /accounts/{holder}/{asset}/{account}/{id} [delete]
 func (a *AccountsService) cancel(w http.ResponseWriter, r *http.Request) {
@@ -180,8 +175,7 @@ func (a *AccountsService) cancel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	asset, err := a.asset(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -191,8 +185,7 @@ func (a *AccountsService) cancel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	account, err := a.account(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -202,8 +195,7 @@ func (a *AccountsService) cancel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id, err := a.id(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -223,8 +215,7 @@ func (a *AccountsService) cancel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx, err := a.ledger.Cancel(r.Context(), in.Holder, in.Asset, in.Account, in.ID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if isError(w, err) {
 		return
 	}
 
@@ -262,8 +253,7 @@ func (a *AccountsService) holders(w http.ResponseWriter, r *http.Request) {
 		return true, nil
 	})
 
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if isError(w, err) {
 		return
 	}
 
@@ -293,8 +283,7 @@ func (a *AccountsService) allAccounts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	balances, err := a.ledger.Balance(r.Context(), holder, types.AllAssets, types.AllAccounts, types.AllStatuses)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -345,14 +334,12 @@ func (a *AccountsService) accounts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	asset, err := a.asset(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
 	balances, err := a.ledger.Balance(r.Context(), holder, asset, types.AllAccounts, types.AllStatuses)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -404,8 +391,7 @@ func (a *AccountsService) transactions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	asset, err := a.asset(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -415,8 +401,7 @@ func (a *AccountsService) transactions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	account, err := a.account(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -447,8 +432,7 @@ func (a *AccountsService) transactions(w http.ResponseWriter, r *http.Request) {
 		}
 	})
 
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -475,8 +459,7 @@ func (a *AccountsService) history(w http.ResponseWriter, r *http.Request) {
 	}
 
 	asset, err := a.asset(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -486,8 +469,7 @@ func (a *AccountsService) history(w http.ResponseWriter, r *http.Request) {
 	}
 
 	account, err := a.account(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -497,8 +479,7 @@ func (a *AccountsService) history(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id, err := a.id(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -530,8 +511,7 @@ func (a *AccountsService) history(w http.ResponseWriter, r *http.Request) {
 		}
 	})
 
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -549,6 +529,7 @@ func (a *AccountsService) history(w http.ResponseWriter, r *http.Request) {
 // @Param        status   	path      	string  true  	"Transaction Status"
 // @Success 	 200 		{object} service.Transaction
 // @Failure      404
+// @Failure      406
 // @Failure      500
 // @Router       /accounts/{holder}/{asset}/{account}/{id}/{status} [patch]
 func (a *AccountsService) change(w http.ResponseWriter, r *http.Request) {
@@ -559,8 +540,7 @@ func (a *AccountsService) change(w http.ResponseWriter, r *http.Request) {
 	}
 
 	asset, err := a.asset(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -570,8 +550,7 @@ func (a *AccountsService) change(w http.ResponseWriter, r *http.Request) {
 	}
 
 	account, err := a.account(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -581,15 +560,13 @@ func (a *AccountsService) change(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id, err := a.id(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
 	status, err := a.status(w, r)
 
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if isError(w, err) {
 		return
 	}
 
@@ -610,8 +587,7 @@ func (a *AccountsService) change(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx, err := a.ledger.Status(r.Context(), in, in.Status)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if isError(w, err) {
 		return
 	}
 
@@ -632,7 +608,12 @@ func (t *AccountsService) asset(w http.ResponseWriter, r *http.Request) (types.A
 		return types.AllAssets, nil
 	}
 
-	return t.ledger.SupportedAssets().Parse(assetID)
+	asset, err := t.ledger.SupportedAssets().Parse(assetID)
+	if err == nil {
+		return asset, nil
+	}
+
+	return types.AllAssets, ledger.NewError(http.StatusBadRequest, err.Error())
 }
 
 func (t *AccountsService) status(w http.ResponseWriter, r *http.Request) (types.Status, error) {
@@ -642,7 +623,13 @@ func (t *AccountsService) status(w http.ResponseWriter, r *http.Request) (types.
 		return types.AllStatuses, nil
 	}
 
-	return t.ledger.SupportedStatus().Parse(statusID)
+	status, err := t.ledger.SupportedStatus().Parse(statusID)
+
+	if err == nil {
+		return status, nil
+	}
+
+	return types.AllStatuses, ledger.NewError(http.StatusBadRequest, err.Error())
 }
 
 func (l *AccountsService) holder(w http.ResponseWriter, r *http.Request) string {
@@ -657,17 +644,17 @@ func (l *AccountsService) amount(w http.ResponseWriter, r *http.Request) (decima
 func (l *AccountsService) id(w http.ResponseWriter, r *http.Request) (types.ID, error) {
 	txid := chi.URLParam(r, "id")
 	if txid == "" {
-		return types.ZeroID, fmt.Errorf("transaction id is mandatory")
+		return types.ZeroID, ledger.NewError(http.StatusBadRequest, "transaction id is mandatory")
 	}
 
 	guid, err := uuid.Parse(txid)
 	if err != nil {
-		return types.ZeroID, fmt.Errorf("transaction id is invalid: %v", err)
+		return types.ZeroID, ledger.NewError(http.StatusBadRequest, "transaction id is invalid: %v", err)
 	}
 
 	id := types.ID{UUID: guid}
 	if id.IsEmpty() {
-		return types.ZeroID, fmt.Errorf("transaction id is empty")
+		return types.ZeroID, ledger.NewError(http.StatusBadRequest, "transaction id is empty")
 	}
 
 	return id, nil
@@ -709,7 +696,7 @@ func (l *AccountsService) account(w http.ResponseWriter, r *http.Request) (ledge
 	if accountID != "" {
 		account := types.Account(accountID)
 		if !account.Check() {
-			return nil, fmt.Errorf("invalid checksum for account %v", account)
+			return nil, ledger.NewError(http.StatusBadRequest, "invalid checksum for account %v", account)
 		}
 
 		if account != types.AllAccounts {
@@ -721,4 +708,19 @@ func (l *AccountsService) account(w http.ResponseWriter, r *http.Request) (ledge
 	}
 
 	return nil, nil
+}
+
+func isError(w http.ResponseWriter, err error) bool {
+	if err != nil {
+		lerr, ok := err.(ledger.Error)
+		if ok {
+			http.Error(w, err.Error(), lerr.HttpStatusCode())
+			return true
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return true
+		}
+	}
+
+	return false
 }

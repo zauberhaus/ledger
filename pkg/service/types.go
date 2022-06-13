@@ -24,6 +24,12 @@ type Balance struct {
 	Accounts []*AccountBalance `json:"Accounts,omitempty"`
 	Count    uint              `json:"Count"`
 }
+
+type AssetBalance struct {
+	Asset string          `json:"Asset"`
+	Sum   decimal.Decimal `json:"Sum"`
+}
+
 type AccountBalance struct {
 	ID    string          `json:"ID"`
 	Count uint            `json:"Count"`

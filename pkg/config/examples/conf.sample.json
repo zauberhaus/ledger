@@ -36,6 +36,7 @@
     "Port": 8888,
     "Production": false,
     "AccessLogger": true,
+    "ReadOnly": false,
     "Metrics": 9094,
     "Servername": ""
   },

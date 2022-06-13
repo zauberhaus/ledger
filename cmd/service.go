@@ -8,7 +8,9 @@ import (
 	"github.com/ec-systems/core.ledger.server/pkg/config"
 	"github.com/ec-systems/core.ledger.server/pkg/ledger"
 	"github.com/ec-systems/core.ledger.server/pkg/logger"
+	"github.com/ec-systems/core.ledger.server/pkg/metrics"
 	"github.com/ec-systems/core.ledger.server/pkg/service"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"fmt"
 
@@ -74,9 +76,14 @@ func addServiceCmd(root *RootCommand) {
 
 			defer client.Close(cmd.Context())
 
+			collector := metrics.NewTxCollector(cfg)
+			prometheus.MustRegister(collector)
+
 			l := ledger.New(client,
 				ledger.SupportedAssets(cfg.Assets),
 				ledger.SupportedStatuses(cfg.Statuses),
+				ledger.ReadOnly(cfg.Service.ReadOnly),
+				ledger.Collector(collector),
 			)
 
 			svc, err := service.NewLedgerService(cmd.Context(), l, &cfg.Service)
@@ -110,6 +117,9 @@ func addServiceCmd(root *RootCommand) {
 
 	cmd.Flags().Bool("access-log", cfg.Service.AccessLogger, "Enabled access logger")
 	root.bindFlags(cmd.Flags(), "Service.AccessLogger", "access-log")
+
+	cmd.Flags().Bool("read-only", cfg.Service.ReadOnly, "Read-only mode")
+	root.bindFlags(cmd.Flags(), "Service.ReadOnly", "read-only")
 
 	root.AddCommand(cmd)
 }

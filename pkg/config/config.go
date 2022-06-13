@@ -42,6 +42,7 @@ type ServiceConfig struct {
 	Port         int `default:"8888"`
 	Production   bool
 	AccessLogger bool `default:"true"`
+	ReadOnly     bool `default:"false"`
 	Metrics      int  `default:"9094"`
 	Servername   string
 

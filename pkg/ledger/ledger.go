@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash/crc64"
+	"net/http"
 	"strings"
 	"time"
 
@@ -25,13 +26,15 @@ const (
 	AccountNotFoundError = 1
 	TooManyAccountsError = 2
 	NotEnoughAssetsError = 3
-	BadRequestError      = 400
-	NotFoundError        = 404
-	InternalError        = 500
+	BadRequestError      = http.StatusBadRequest
+	NotFoundError        = http.StatusNotFound
+	NotAcceptable        = http.StatusNotAcceptable
+	InternalError        = http.StatusInternalServerError
 )
 
 type Ledger struct {
 	client   *client.Client
+	readOnly bool
 	overdraw bool
 	multi    bool
 
@@ -39,6 +42,8 @@ type Ledger struct {
 	statuses types.Statuses
 
 	format types.Format
+
+	collectors []types.MetricsCollector
 }
 
 func New(client *client.Client, options ...LedgerOption) *Ledger {
@@ -51,6 +56,10 @@ func New(client *client.Client, options ...LedgerOption) *Ledger {
 		if option != nil {
 			option.Set(ledger)
 		}
+	}
+
+	if ledger.readOnly {
+		logger.Info("Run ledger in read-only mode")
 	}
 
 	return ledger
@@ -188,6 +197,10 @@ func (l *Ledger) Balance(ctx context.Context, holder string, asset types.Asset, 
 }
 
 func (l *Ledger) AssetBalance(ctx context.Context, asset types.Asset) (map[types.Asset]decimal.Decimal, error) {
+	if !l.readOnly {
+		return nil, NewError(NotAcceptable, "not a read-only instance")
+	}
+
 	var assets []types.Asset
 
 	if asset == types.AllAssets {
@@ -315,6 +328,10 @@ func (l *Ledger) Get(ctx context.Context, transaction types.ID) (*Transaction, e
 }
 
 func (l *Ledger) Status(ctx context.Context, in *Transaction, status types.Status) (*Transaction, error) {
+	if l.readOnly {
+		return nil, NewError(NotFoundError, "read-only instance")
+	}
+
 	tx, err := l.Get(ctx, in.ID)
 	if err != nil {
 		return nil, err
@@ -346,6 +363,10 @@ func (l *Ledger) Status(ctx context.Context, in *Transaction, status types.Statu
 }
 
 func (l *Ledger) CreateTx(ctx context.Context, holder string, asset types.Asset, amount decimal.Decimal, options ...TransactionOption) (*Transaction, error) {
+	if l.readOnly {
+		return nil, NewError(NotFoundError, "read-only instance")
+	}
+
 	if amount.IsZero() {
 		return nil, NewError(BadRequestError, "transaction for holder %v with 0 %v", holder, asset)
 	}
@@ -443,10 +464,6 @@ func (l *Ledger) CreateTx(ctx context.Context, holder string, asset types.Asset,
 		return nil, NewError(BadRequestError, "invalid checksum for account %v", tx.Account)
 	}
 
-	return l.Create(ctx, tx)
-}
-
-func (l *Ledger) Create(ctx context.Context, tx *Transaction) (*Transaction, error) {
 	ops, key, err := l.CreateOperations(tx)
 	if err != nil {
 		return nil, err
@@ -456,6 +473,10 @@ func (l *Ledger) Create(ctx context.Context, tx *Transaction) (*Transaction, err
 
 	tx.tx = txID
 	tx.key = key
+
+	for _, c := range l.collectors {
+		c.Add(tx.Asset, tx.Amount)
+	}
 
 	return tx, err
 }
@@ -477,6 +498,10 @@ func (l *Ledger) Remove(ctx context.Context, holder string, asset types.Asset, a
 }
 
 func (l *Ledger) Cancel(ctx context.Context, holder string, asset types.Asset, account types.Account, transaction types.ID) (*Transaction, error) {
+	if l.readOnly {
+		return nil, NewError(NotFoundError, "read-only instance")
+	}
+
 	tx, err := l.Get(ctx, transaction)
 	if err != nil {
 		return nil, NewError(InternalError, "cant read transaxtion %v: %v", transaction, err)
@@ -497,6 +522,10 @@ func (l *Ledger) Cancel(ctx context.Context, holder string, asset types.Asset, a
 	txID, err := l.client.Exec(ctx, ops...)
 
 	cancel.tx = txID
+
+	for _, c := range l.collectors {
+		c.Add(tx.Asset, tx.Amount)
+	}
 
 	return cancel, err
 }

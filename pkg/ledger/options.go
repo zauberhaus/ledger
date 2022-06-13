@@ -20,6 +20,16 @@ func Format(value types.Format) LedgerOption {
 	})
 }
 
+func ReadOnly(value ...bool) LedgerOption {
+	return LedgerOptionFunc(func(l *Ledger) {
+		if len(value) == 0 {
+			l.readOnly = true
+		} else {
+			l.readOnly = value[0]
+		}
+	})
+}
+
 func Overdraw(value ...bool) LedgerOption {
 	return LedgerOptionFunc(func(l *Ledger) {
 		if len(value) == 0 {
@@ -53,6 +63,12 @@ func SupportedStatuses(statuses types.Statuses) LedgerOption {
 		if len(statuses) > 0 {
 			l.statuses = statuses
 		}
+	})
+}
+
+func Collector(collectors ...types.MetricsCollector) LedgerOption {
+	return LedgerOptionFunc(func(l *Ledger) {
+		l.collectors = append(l.collectors, collectors...)
 	})
 }
 
