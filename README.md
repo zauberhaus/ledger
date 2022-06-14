@@ -23,16 +23,16 @@ Local immudb:
 
 ```bash
 DB=test source env.sh
-./core.ledger.service init // only if database doesn't exist
-./core.ledger.service service
+./core.ledger.server init // only if database doesn't exist
+./core.ledger.server service
 ```
 
 Immudb installed via Helm chart [core.immudb.helm](https://github.com/ec-systems/core.immudb.helm):
 
 ```bash
 RELEASE={helm chart name} NS={kubernetes namespace} DB=test source env.sh
-./core.ledger.service init // only if database doesn't exist
-./core.ledger.service service
+./core.ledger.server init // only if database doesn't exist
+./core.ledger.server service
 ```
 
 Now you should be able to access the [swagger documentation](http://localhost:8888/swagger/index.html)
@@ -51,7 +51,7 @@ docker-compose up immudb -d
 
 ## Configuration
 
-Examples are in the folder [pkg/config/examples/conf.sample.json](https://github.com/ec-systems/core.ledger.service/tree/dev/pkg/config/examples)
+Examples are in the folder [pkg/config/examples/conf.sample.json](https://github.com/ec-systems/core.ledger.server/tree/dev/pkg/config/examples)
 
 ## Generate files after changes
 
@@ -88,12 +88,12 @@ docker push gcr.io/astute-synapse-332322/core-ledger-service:{version}
 ## Command line tool
 
 ```bash
-./core.ledger.service --help
+./core.ledger.server --help
 
 EC core ledger service
 
 Usage:
-core.ledger.service [command]
+core.ledger.server [command]
 
 Available Commands:
 accounts List all accounts of a holder
@@ -115,10 +115,10 @@ Flags:
 --assets stringToString Supported assets (default [])
 --ca string MTLs ca file name
 --certificate string MTLs certificate file name
---config string Config file (default is $HOME/core.ledger.service.yaml)
+--config string Config file (default is $HOME/core.ledger.server.yaml)
 -d, --database string Database name
 -f, --format Format Format of the database values (default protobuf)
--h, --help help for core.ledger.service
+-h, --help help for core.ledger.server
 -l, --log string Log level (error, panic, fatal, debug, info, warn) (default "info")
 -m, --mtls Enable mtls
 -P, --password string Database user password

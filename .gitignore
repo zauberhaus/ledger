@@ -14,6 +14,7 @@ chart/Chart.lock
 chart/charts
 chart/old
 chart/kube
-chart/config
 
 chart/gcr.json
+chart/k3s.yaml
+chart/envs

@@ -129,19 +129,7 @@ cert-manager:
 service:
   type: ClusterIP
   port:
-
-resources:
-  {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+  ip:
 
 autoscaling:
   enabled: false
@@ -154,12 +142,29 @@ reloader:
   enabled: true
   reloader:
     watchGlobally: false
+    deployment:  
+      resources:
+        limits:
+          cpu: 100m
+          memory: 128Mi
+        requests:
+          cpu: 10m
+          memory: 32Mi
+
 
 nodeSelector: {}
 
 tolerations: []
 
 affinity: {}
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
 
 replica:
   enabled: false
@@ -173,7 +178,13 @@ replica:
     maxInactivityTime: 15m
     guardCheckInterval: 5m
     timeout: 15m
-  resources: {}
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 4096Mi
+    requests:
+      cpu: 500m
+      memory: 1024Mi
   storage:
     size: 2Gi
   podAnnotations: {}
@@ -184,3 +195,105 @@ replica:
     runAsGroup: 3322
     fsGroup: 3322
     runAsNonRoot: true
+
+prometheus:
+  enabled: false
+
+  nodeExporter:
+    enabled: false
+
+  alertmanager:
+    enabled: false
+
+  pushgateway:
+    enabled: false
+
+  kubeStateMetrics:
+    enabled: true
+
+  kube-state-metrics:
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 32Mi
+
+  rbac:
+    create: true
+
+  podSecurityPolicy:
+    enabled: false
+
+  ingress:
+    enabled: false
+    subPath:
+      enabled: false
+    hosts: []
+
+  server:
+    persistentVolume:
+      enabled: true
+      size: 10Gi
+
+    strategy:
+      type: Recreate
+
+    configMapOverrideName: prometheus-config
+
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1024Mi
+      requests:
+        cpu: 100m
+        memory: 512Mi
+
+
+grafana:
+  enabled: false
+  replicas: 1
+  testFramework:
+    enabled: false
+  rbac:
+    create: true
+    pspEnabled: true
+    namespaced: true
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: "default"
+          orgId: 1
+          folder: ""
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: TemporalMetrics
+          type: prometheus
+          url: http://{{ .Release.Name }}-prometheus-server
+          access: proxy
+          isDefault: true
+  sidecar:
+    dashboards:
+      enabled: true
+    datasources:
+      enabled: false
+      initDatasources: false
+  image:
+    repository: grafana/grafana
+    tag: 8.4.3
+    sha: ""
+  pullPolicy: IfNotPresent
+  ingress:
+    enabled: false
+    subPath:
+      enabled: false
+    hosts: []

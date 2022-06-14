@@ -26,9 +26,17 @@ appVersion: "0.3.0"
 dependencies:
   - name: cert-manager
     repository: https://charts.jetstack.io
-    version: v1.7.1
+    version: v1.8.0
     condition: cert-manager.install
   - name: reloader
     repository: https://stakater.github.io/stakater-charts
-    version: 0.0.109
+    version: 0.0.114
     condition: reloader.enabled
+  - name: prometheus
+    repository: https://prometheus-community.github.io/helm-charts
+    version: 15.10.1
+    condition: prometheus.enabled    
+  - name: grafana
+    repository: https://grafana.github.io/helm-charts
+    version: 6.29.6
+    condition: grafana.enabled

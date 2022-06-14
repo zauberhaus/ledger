@@ -5,6 +5,10 @@ metadata:
   name: {{ include "chart.fullname" . }}
   labels:
     {{- include "chart.labels" . | nindent 4 }}
+  {{- if .Values.podAnnotations }}
+  annotations:
+    {{ toYaml .Values.podAnnotations | indent 6 }}
+  {{- end }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}

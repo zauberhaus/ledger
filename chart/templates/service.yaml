@@ -18,3 +18,65 @@ spec:
       protocol: TCP
       name: web
   selector: {{- include "chart.selectorLabels" . | nindent 4 }}
+  {{- if eq .Values.service.type "LoadBalancer" }}
+  {{- if not (eq .Values.service.ip "") }}
+  loadBalancerIP: {{ .Values.service.ip | quote }}
+  {{- end }}
+  {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "chart.fullname" . }}-headless
+  labels: 
+    {{- include "chart.labels" . | nindent 4 }}
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  {{- if .Values.ledger.metrics.enabled }}
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: {{ .Values.ledger.metrics.port | quote }}
+  {{- end }}
+
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    {{- if .Values.service.port }}
+    - port: {{ .Values.service.port }}
+    {{- else if .Values.ledger.mtls.enabled }}
+    - port: 443
+    {{- else }}
+    - port: 80
+    {{- end }}
+      targetPort: web
+      protocol: TCP
+      name: web
+  selector: {{- include "chart.selectorLabels" . | nindent 4 }}
+---
+{{- if .Values.replica.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "chart.fullname" . }}-replica-headless
+  labels: 
+    {{- include "chart.labels" . | nindent 4 }}
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  {{- if .Values.ledger.metrics.enabled }}
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "9497"
+  {{- end }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - port: 9497
+      targetPort: metrics2
+      protocol: TCP
+      name: metrics
+  selector: {{- include "chart.selectorLabels" . | nindent 4 }}
+{{- end }}  
