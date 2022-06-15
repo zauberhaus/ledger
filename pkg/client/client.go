@@ -53,8 +53,15 @@ func New(ctx context.Context, user string, password string, db string, options .
 	return cl, nil
 }
 
-func (c *Client) Close(ctx context.Context) {
-	c.client.CloseSession(ctx)
+func (c *Client) Close(ctx context.Context) error {
+	err := c.client.CloseSession(ctx)
+	if err == nil {
+		logger.Info("Database disconnected")
+	} else {
+		logger.Errorf("Database disconnect failed: %v", err)
+	}
+
+	return err
 }
 
 func (c *Client) DatabaseExist(ctx context.Context, name string) (bool, error) {
@@ -461,6 +468,28 @@ func (c *Client) ScanSet(ctx context.Context, set string, desc bool, f func(cont
 	}
 
 	return nil
+}
+
+func (c *Client) Export(ctx context.Context, tx uint64) (schema.ImmuService_ExportTxClient, error) {
+	req := &schema.ExportTxRequest{
+		Tx: tx,
+	}
+
+	client, err := c.client.ExportTx(ctx, req)
+	for !c.checkSessionError(ctx, err) {
+		client, err = c.client.ExportTx(ctx, req)
+	}
+
+	return client, err
+}
+
+func (c *Client) Replicate(ctx context.Context) (schema.ImmuService_ReplicateTxClient, error) {
+	client, err := c.client.ReplicateTx(ctx)
+	for !c.checkSessionError(ctx, err) {
+		client, err = c.client.ReplicateTx(ctx)
+	}
+
+	return client, err
 }
 
 func (c *Client) Health(ctx context.Context) (*schema.DatabaseHealthResponse, error) {

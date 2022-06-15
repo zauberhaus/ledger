@@ -70,12 +70,14 @@ func NewLedgerService(ctx context.Context, ledger *ledger.Ledger, cfg *config.Se
 	return svc, nil
 }
 
-func (l *LedgerService) Start() error {
-	if l.cfg.Metrics > 0 {
-		go func() {
-			l.svc.StartMetrics()
-		}()
-	}
-
+func (l *LedgerService) Start() chan error {
 	return l.svc.Start()
+}
+
+func (l *LedgerService) Stop(ctx context.Context) error {
+	return l.svc.Stop(ctx)
+}
+
+func (l *LedgerService) Done() chan bool {
+	return l.svc.Done()
 }

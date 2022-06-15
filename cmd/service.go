@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/ec-systems/core.ledger.server/docs"
 	"github.com/ec-systems/core.ledger.server/pkg/client"
@@ -63,6 +66,9 @@ func addServiceCmd(root *RootCommand) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Configuration()
 
+			sigs := make(chan os.Signal, 1)
+			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
 			logger.Infof("Start ledger service %v", root.GetVersion().GitVersion)
 			logger.Infof("Configuration\n%v", cfg)
 
@@ -91,7 +97,24 @@ func addServiceCmd(root *RootCommand) {
 				return fmt.Errorf("service error: %v", err)
 			}
 
-			return svc.Start()
+			go func() {
+				sig := <-sigs
+				logger.Infof("Got %v signal", sig)
+
+				err := svc.Stop(cmd.Context())
+				if err != nil {
+					logger.Errorf("shutdown error: %v", err)
+				}
+			}()
+
+			err = <-svc.Start()
+			if err != nil {
+				return err
+			}
+
+			<-svc.Done()
+
+			return nil
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
 			return nil
