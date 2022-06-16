@@ -19,7 +19,7 @@ func TestGroupBindings(t *testing.T) {
 	rootCmd := cmd.GetRootCmd(&cmd.Version{})
 
 	b := rootCmd.EnvBindings()
-	assert.Len(t, b, 40)
+	assert.Len(t, b, 41)
 
 	r, err := generator.GroupBindings(b)
 	assert.NoError(t, err)
